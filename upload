@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Can I park here? — Vienna live</title>
+<script defer src="https://cloud.umami.is/script.js" data-website-id="5de2269b-087d-49b3-8987-30c6e00ecee7"></script>
+<style>
+  :root{
+    --blue-deep:#0a3d62;
+    --blue:#1b5e8a;
+    --blue-pale:#e7f0f6;
+    --gold:#c8971f;
+    --gold-soft:#f2e2b8;
+    --paper:#f6f3ec;
+    --ink:#1c1b17;
+    --ink-soft:#5c5850;
+    --green:#2f6b3a;
+    --green-bg:#e5efe3;
+    --red:#a3372f;
+    --red-bg:#f6e5e2;
+    --amber:#9a6b13;
+    --amber-bg:#f6ecd4;
+    --line:#d9d2c2;
+    --radius:18px;
+    --shadow:0 10px 30px -12px rgba(10,61,98,0.25);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, var(--blue-pale) 0%, var(--paper) 55%);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:28px 16px 60px;
+  }
+  .page{width:100%;max-width:460px;position:relative;}
+
+  .langswitch{
+    position:absolute;top:-6px;right:0;
+    display:flex;gap:2px;background:#fff;border:1px solid var(--line);
+    border-radius:100px;padding:3px;box-shadow:0 2px 8px -4px rgba(10,61,98,0.3);
+    z-index:5;
+  }
+  .lang-btn{
+    border:none;background:transparent;padding:5px 12px;border-radius:100px;
+    font-size:0.72rem;font-weight:700;letter-spacing:0.03em;color:var(--ink-soft);cursor:pointer;
+  }
+  .lang-btn.active{background:var(--blue-deep);color:#fff;}
+
+  .ornament{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    color:var(--gold);opacity:0.85;margin-bottom:6px;
+  }
+  .ornament svg{width:120px;height:14px;}
+
+  header{text-align:center;margin-bottom:22px;padding-top:20px;}
+  header h1{
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+    font-size:1.7rem;
+    margin:0 0 4px;
+    color:var(--blue-deep);
+    letter-spacing:0.2px;
+  }
+  header p{
+    margin:0;
+    color:var(--ink-soft);
+    font-size:0.92rem;
+  }
+  header p b{color:var(--blue);}
+
+  .status-card{
+    background:#fff;
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:30px 24px 26px;
+    text-align:center;
+    border:1px solid var(--line);
+    position:relative;
+    overflow:hidden;
+    transition:background .4s ease;
+  }
+  .status-card.state-free{background:var(--green-bg);}
+  .status-card.state-paid{background:var(--red-bg);}
+  .status-card.state-check{background:var(--amber-bg);}
+
+  .dial{
+    width:104px;height:104px;border-radius:50%;
+    margin:0 auto 16px;
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+    background:var(--blue-deep);
+    box-shadow:0 0 0 6px rgba(10,61,98,0.08);
+  }
+  .state-free .dial{background:var(--green);box-shadow:0 0 0 6px rgba(47,107,58,0.12);}
+  .state-paid .dial{background:var(--red);box-shadow:0 0 0 6px rgba(163,55,47,0.12);}
+  .state-check .dial{background:var(--amber);box-shadow:0 0 0 6px rgba(154,107,19,0.12);}
+  .dial .ring{
+    position:absolute;inset:0;border-radius:50%;
+    background:conic-gradient(rgba(255,255,255,0.55) var(--pct,0%), transparent 0);
+    -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));
+            mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));
+  }
+  .dial span{
+    font-family:Georgia,serif;
+    font-weight:700;
+    font-size:2.1rem;
+    color:#fff;
+  }
+
+  .status-headline{
+    font-size:1.35rem;
+    font-weight:700;
+    margin:0 0 6px;
+    color:var(--ink);
+  }
+  .status-detail{
+    margin:0;
+    color:var(--ink-soft);
+    font-size:0.95rem;
+    line-height:1.5;
+  }
+  .countdown{
+    margin:14px auto 0;
+    display:inline-block;
+    font-size:0.82rem;
+    color:var(--blue-deep);
+    background:rgba(10,61,98,0.07);
+    padding:6px 14px;
+    border-radius:100px;
+  }
+  .countdown:empty{display:none;}
+
+  .clock-row{
+    display:flex;justify-content:space-between;align-items:baseline;
+    margin:16px 4px 22px;
+    color:var(--ink-soft);
+    font-size:0.85rem;
+  }
+  .clock-row #clockTime{
+    font-variant-numeric:tabular-nums;
+    font-size:1.05rem;
+    color:var(--blue-deep);
+    font-weight:600;
+  }
+
+  .card{
+    background:#fff;border-radius:var(--radius);
+    border:1px solid var(--line);
+    padding:20px 22px;margin-bottom:16px;
+    box-shadow:0 4px 16px -10px rgba(10,61,98,0.15);
+  }
+  .card h3{
+    margin:0 0 14px;font-size:0.78rem;letter-spacing:0.06em;
+    text-transform:uppercase;color:var(--blue);font-weight:700;
+  }
+
+  .toggle-row{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:11px 0;border-bottom:1px solid var(--line);
+  }
+  .toggle-row:last-child{border-bottom:none;}
+  .toggle-row .label{font-size:0.93rem;line-height:1.3;}
+  .toggle-row .label small{display:block;color:var(--ink-soft);font-size:0.78rem;margin-top:2px;}
+
+  .switch{position:relative;width:46px;height:26px;flex:none;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slider{
+    position:absolute;inset:0;background:#dcd6c8;border-radius:100px;
+    cursor:pointer;transition:.25s;
+  }
+  .slider::before{
+    content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;
+    background:#fff;border-radius:50%;transition:.25s;
+    box-shadow:0 1px 3px rgba(0,0,0,0.3);
+  }
+  input:checked + .slider{background:var(--blue);}
+  input:checked + .slider::before{transform:translateX(20px);}
+
+  .rules p{font-size:0.88rem;line-height:1.55;color:var(--ink-soft);margin:0 0 10px;}
+  .rules p:last-child{margin-bottom:0;}
+  .rules b{color:var(--ink);}
+
+  .pay-text{font-size:0.88rem;line-height:1.55;color:var(--ink-soft);margin:0 0 12px;}
+  .pay-text b{color:var(--ink);}
+  .pay-link{
+    display:inline-flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;
+    color:#fff;background:var(--blue-deep);padding:9px 16px;border-radius:100px;
+    text-decoration:none;
+  }
+  .pay-link:hover{background:var(--blue);}
+
+  details.other-signs{
+    background:#fff;border-radius:var(--radius);border:1px solid var(--line);
+    padding:16px 22px;margin-bottom:16px;box-shadow:0 4px 16px -10px rgba(10,61,98,0.15);
+  }
+  details.other-signs summary{
+    cursor:pointer;font-size:0.78rem;letter-spacing:0.06em;text-transform:uppercase;
+    color:var(--blue);font-weight:700;list-style:none;display:flex;align-items:center;gap:8px;
+  }
+  details.other-signs summary::-webkit-details-marker{display:none;}
+  details.other-signs summary::before{
+    content:"+";display:inline-flex;align-items:center;justify-content:center;
+    width:16px;height:16px;border-radius:50%;background:var(--blue-pale);color:var(--blue-deep);
+    font-size:0.85rem;font-weight:700;
+  }
+  details.other-signs[open] summary::before{content:"–";}
+  details.other-signs .sign-item{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+  details.other-signs .sign-item:first-of-type{border-top:none;margin-top:14px;padding-top:0;}
+  details.other-signs .sign-item b{display:block;font-size:0.89rem;color:var(--ink);margin-bottom:2px;}
+  details.other-signs .sign-item span{font-size:0.83rem;color:var(--ink-soft);line-height:1.5;}
+
+  footer{
+    text-align:center;margin-top:8px;color:var(--ink-soft);font-size:0.76rem;line-height:1.6;
+  }
+  footer a{color:var(--blue);}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="langswitch" role="group" aria-label="Language">
+    <button type="button" class="lang-btn" id="langEN">EN</button>
+    <button type="button" class="lang-btn" id="langES">ES</button>
+  </div>
+
+  <div class="ornament" aria-hidden="true">
+    <svg viewBox="0 0 120 14"><path d="M0 7 H45 M75 7 H120" stroke="currentColor" stroke-width="1.2"/><circle cx="60" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="60" cy="7" r="1.6" fill="currentColor"/></svg>
+  </div>
+  <header>
+    <h1 id="txt-title">Can I park here?</h1>
+    <p id="txt-subtitle">Vienna Kurzparkzone — <b>live</b> status</p>
+  </header>
+
+  <div class="status-card" id="statusCard">
+    <div class="dial" id="dial"><div class="ring" id="ring"></div><span id="dialIcon">P</span></div>
+    <p class="status-headline" id="statusHeadline">…</p>
+    <p class="status-detail" id="statusDetail"></p>
+    <span class="countdown" id="countdown"></span>
+  </div>
+
+  <div class="clock-row">
+    <span id="clockDay">—</span>
+    <span id="clockTime">--:--:--</span>
+  </div>
+
+  <div class="card">
+    <h3 id="txt-situationTitle">Your situation</h3>
+    <div class="toggle-row">
+      <div class="label" id="txt-pickerlLabel">I have a Parkpickerl for this district
+        <small id="txt-pickerlSub">Valid at your home district, not on business streets</small>
+      </div>
+      <label class="switch"><input type="checkbox" id="tPickerl"><span class="slider"></span></label>
+    </div>
+    <div class="toggle-row">
+      <div class="label" id="txt-businessLabel">This is a business street (Geschäftsstraße)
+        <small id="txt-businessSub">Parkpickerl doesn't exempt you here</small>
+      </div>
+      <label class="switch"><input type="checkbox" id="tBusiness"><span class="slider"></span></label>
+    </div>
+    <div class="toggle-row">
+      <div class="label" id="txt-stadthalleLabel">I'm near the Wiener Stadthalle
+        <small id="txt-stadthalleSub">Special zone: also paid Sat/Sun/holidays 18–22h</small>
+      </div>
+      <label class="switch"><input type="checkbox" id="tStadthalle"><span class="slider"></span></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 id="txt-specialTitle">Special cases on the sign</h3>
+    <div class="toggle-row">
+      <div class="label" id="txt-disabilityLabel">I have a disability permit (§29b)
+        <small id="txt-disabilitySub">Free, unlimited time, anywhere in the zone</small>
+      </div>
+      <label class="switch"><input type="checkbox" id="tDisability"><span class="slider"></span></label>
+    </div>
+    <div class="toggle-row">
+      <div class="label" id="txt-loadingLabel">This is a loading zone (Ladezone)
+        <small id="txt-loadingSub">Only for vehicles actively loading/unloading</small>
+      </div>
+      <label class="switch"><input type="checkbox" id="tLoading"><span class="slider"></span></label>
+    </div>
+    <div class="toggle-row">
+      <div class="label" id="txt-reservedLabel">Sign reserves this spot for someone else
+        <small id="txt-reservedSub">e.g. "ausgenommen Anrainer" — residents/permit only</small>
+      </div>
+      <label class="switch"><input type="checkbox" id="tReserved"><span class="slider"></span></label>
+    </div>
+    <div class="toggle-row">
+      <div class="label" id="txt-discLabel">It's a disc-parking zone (Parkscheibe)
+        <small id="txt-discSub">Free but time-limited — no paid Parkschein needed</small>
+      </div>
+      <label class="switch"><input type="checkbox" id="tDisc"><span class="slider"></span></label>
+    </div>
+    <div class="toggle-row">
+      <div class="label" id="txt-exceptionLabel">Sign says something else entirely
+        <small id="txt-exceptionSub">Local signage always overrides this app</small>
+      </div>
+      <label class="switch"><input type="checkbox" id="tException"><span class="slider"></span></label>
+    </div>
+  </div>
+
+  <details class="other-signs">
+    <summary id="txt-otherSummary">Other signs you might run into</summary>
+    <div class="sign-item">
+      <b id="txt-other1-b">Craftsperson sticker (Handwerkerparkkleber)</b>
+      <span id="txt-other1-s">Registered trade vehicles may park beyond the 2-hour limit, Mon–Fri 8:00–16:00, in the districts where it's approved.</span>
+    </div>
+    <div class="sign-item">
+      <b id="txt-other2-b">Event closures</b>
+      <span id="txt-other2-s">Rathausplatz, Stadthalle, Ernst-Happel-Stadion and similar sites post temporary tow-away zones for markets, concerts or matches — dates are always signed on-site in advance.</span>
+    </div>
+    <div class="sign-item">
+      <b id="txt-other3-b">EV charging bays</b>
+      <span id="txt-other3-s">Marked for charging only — parking there without actually charging can get you towed.</span>
+    </div>
+    <div class="sign-item">
+      <b id="txt-other4-b">Weekly markets</b>
+      <span id="txt-other4-s">Streets hosting markets (Naschmarkt, Brunnenmarkt, etc.) ban parking during market hours, several days a week.</span>
+    </div>
+    <div class="sign-item">
+      <b id="txt-other5-b">Taxi stands &amp; street cleaning</b>
+      <span id="txt-other5-s">"Taxi" bays are reserved at all times; occasional zip-tied signs suspend parking temporarily for street cleaning — check the pole, not just the main sign.</span>
+    </div>
+  </details>
+
+  <div class="card rules">
+    <h3 id="txt-rulesTitle">General rule (all 23 districts, since 2022)</h3>
+    <p id="txt-rule1"><b>Mon–Fri, 9:00–22:00:</b> paid zone city-wide. Parkschein required, max. 2 hours without a Parkpickerl.</p>
+    <p id="txt-rule2"><b>Saturdays, Sundays and public holidays:</b> free parking in most of the city (except special zones like Stadthalle).</p>
+    <p id="txt-rule3"><b>2026 rate:</b> €1.70 per 30 min. Free for the first 15 min, but you still must fill out the Parkschein.</p>
+    <p id="txt-rule4"><b>With a Parkpickerl</b> for your district: no time limit, no cost — except on business streets.</p>
+  </div>
+
+  <div class="card">
+    <h3 id="txt-payTitle">How to pay</h3>
+    <p class="pay-text" id="txt-payText">Besides the paper Parkschein, you can pay by phone with <b>HANDYPARKEN</b>, the official app: register once, top up credit, and start/stop your parking session from your phone — no need to display anything on the dashboard.</p>
+    <a class="pay-link" id="txt-payLink" href="https://www.wien.gv.at/verkehr/handyparken" target="_blank" rel="noopener">Official info &amp; download — wien.gv.at/verkehr/handyparken</a>
+  </div>
+
+  <footer id="txt-footer">
+    This tool estimates the status from the City of Vienna's general rule — it is not official advice. It doesn't replace the sign posted on-site, and if you want to be sure, always check the official sources.<br>
+    Source: wien.gv.at (Parkraumbewirtschaftung)
+  </footer>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const els = {
+    card: $('statusCard'), dial: $('dial'), ring: $('ring'), icon: $('dialIcon'),
+    headline: $('statusHeadline'), detail: $('statusDetail'), countdown: $('countdown'),
+    clockTime: $('clockTime'), clockDay: $('clockDay'),
+    tPickerl: $('tPickerl'), tBusiness: $('tBusiness'), tStadthalle: $('tStadthalle'),
+    tDisability: $('tDisability'), tLoading: $('tLoading'), tReserved: $('tReserved'),
+    tDisc: $('tDisc'), tException: $('tException'),
+    langEN: $('langEN'), langES: $('langES')
+  };
+
+  const STR = {
+    en: {
+      docTitle:'Can I park here? — Vienna live',
+      title:'Can I park here?',
+      subtitle:'Vienna Kurzparkzone — <b>live</b> status',
+      situationTitle:'Your situation',
+      pickerlLabel:'I have a Parkpickerl for this district', pickerlSub:"Valid at your home district, not on business streets",
+      businessLabel:'This is a business street (Geschäftsstraße)', businessSub:"Parkpickerl doesn't exempt you here",
+      stadthalleLabel:"I'm near the Wiener Stadthalle", stadthalleSub:'Special zone: also paid Sat/Sun/holidays 18–22h',
+      specialTitle:'Special cases on the sign',
+      disabilityLabel:'I have a disability permit (§29b)', disabilitySub:'Free, unlimited time, anywhere in the zone',
+      loadingLabel:'This is a loading zone (Ladezone)', loadingSub:'Only for vehicles actively loading/unloading',
+      reservedLabel:'Sign reserves this spot for someone else', reservedSub:'e.g. "ausgenommen Anrainer" — residents/permit only',
+      discLabel:"It's a disc-parking zone (Parkscheibe)", discSub:'Free but time-limited — no paid Parkschein needed',
+      exceptionLabel:'Sign says something else entirely', exceptionSub:'Local signage always overrides this app',
+      otherSummary:'Other signs you might run into',
+      other1b:'Craftsperson sticker (Handwerkerparkkleber)', other1s:"Registered trade vehicles may park beyond the 2-hour limit, Mon–Fri 8:00–16:00, in the districts where it's approved.",
+      other2b:'Event closures', other2s:'Rathausplatz, Stadthalle, Ernst-Happel-Stadion and similar sites post temporary tow-away zones for markets, concerts or matches — dates are always signed on-site in advance.',
+      other3b:'EV charging bays', other3s:'Marked for charging only — parking there without actually charging can get you towed.',
+      other4b:'Weekly markets', other4s:'Streets hosting markets (Naschmarkt, Brunnenmarkt, etc.) ban parking during market hours, several days a week.',
+      other5b:'Taxi stands & street cleaning', other5s:'"Taxi" bays are reserved at all times; occasional zip-tied signs suspend parking temporarily for street cleaning — check the pole, not just the main sign.',
+      rulesTitle:'General rule (all 23 districts, since 2022)',
+      rule1:'<b>Mon–Fri, 9:00–22:00:</b> paid zone city-wide. Parkschein required, max. 2 hours without a Parkpickerl.',
+      rule2:'<b>Saturdays, Sundays and public holidays:</b> free parking in most of the city (except special zones like Stadthalle).',
+      rule3:'<b>2026 rate:</b> €1.70 per 30 min. Free for the first 15 min, but you still must fill out the Parkschein.',
+      rule4:'<b>With a Parkpickerl</b> for your district: no time limit, no cost — except on business streets.',
+      payTitle:'How to pay',
+      payText:'Besides the paper Parkschein, you can pay by phone with <b>HANDYPARKEN</b>, the official app: register once, top up credit, and start/stop your parking session from your phone — no need to display anything on the dashboard.',
+      payLinkText:'Official info & download — wien.gv.at/verkehr/handyparken',
+      footer:"This tool estimates the status from the City of Vienna's general rule — it is not official advice. It doesn't replace the sign posted on-site, and if you want to be sure, always check the official sources.<br>Source: wien.gv.at (Parkraumbewirtschaftung)",
+      days:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+      holidaySuffix:' · holiday', tz:'(Vienna)', changesIn:'Changes in',
+      s_check:{h:'Check the sign', d:'You flagged that the local signage differs from the general rule. The sign on-site always wins.'},
+      s_free:{h:'Yes, you can park', d:'Outside Kurzparkzone hours: no payment, no Parkschein needed.'},
+      s_freePickerl:{h:'Yes, with your Parkpickerl', d:"It's paid-zone hours, but your Parkpickerl exempts you from the time limit and the cost in this district."},
+      s_paid:{h:'Paid zone right now', d:'You need a Parkschein. Max. 2 hours. €1.70 per 30 min (free for the first 15 min, but still fill it out).'},
+      s_disability:{h:'Yes, free with your permit', d:'A valid disability permit (§29b), displayed on the windshield, means free parking with no time limit here.'},
+      s_loading:{h:'Only if you’re loading', d:"Loading zones are reserved for vehicles actively loading or unloading. If that's not you, this spot doesn't apply to you regardless of time."},
+      s_reserved:{h:'No, this spot is reserved', d:'Only vehicles matching the specific permit on the sign (residents, etc.) may park here — this has nothing to do with time or your Parkpickerl.'},
+      s_disc:{h:'Yes, with a parking disc', d:'Display your arrival time on the Parkscheibe. Free, but check the sign for the maximum stay (commonly 1–2 hours).'}
+    },
+    es: {
+      docTitle:'¿Puedo estacionar acá? — Viena en vivo',
+      title:'¿Puedo estacionar acá?',
+      subtitle:'Kurzparkzone de Viena — estado <b>en vivo</b>',
+      situationTitle:'Tu situación',
+      pickerlLabel:'Tengo Parkpickerl de este distrito', pickerlSub:'Válido para tu domicilio, no en calles comerciales',
+      businessLabel:'Es una calle comercial (Geschäftsstraße)', businessSub:'El Parkpickerl no exime de pagar acá',
+      stadthalleLabel:'Estoy cerca del Wiener Stadthalle', stadthalleSub:'Zona especial: paga también sáb./dom./feriados 18–22h',
+      specialTitle:'Casos especiales del cartel',
+      disabilityLabel:'Tengo pase de discapacidad (§29b)', disabilitySub:'Gratis, sin límite de tiempo, en toda la zona',
+      loadingLabel:'Es una zona de carga y descarga (Ladezone)', loadingSub:'Solo para vehículos cargando/descargando en el momento',
+      reservedLabel:'El cartel reserva el lugar para otra persona', reservedSub:'ej. "ausgenommen Anrainer" — solo vecinos/permiso',
+      discLabel:'Es una zona con disco horario (Parkscheibe)', discSub:'Gratis pero con límite de tiempo — no hace falta Parkschein pago',
+      exceptionLabel:'El cartel dice otra cosa totalmente distinta', exceptionSub:'La señalización local siempre tiene prioridad sobre esta app',
+      otherSummary:'Otros carteles que te podés encontrar',
+      other1b:'Adhesivo de gremios (Handwerkerparkkleber)', other1s:'Vehículos de oficios registrados pueden superar el límite de 2 horas, lun-vie 8 a 16h, en los distritos habilitados.',
+      other2b:'Cierres por eventos', other2s:'Rathausplatz, Stadthalle, Ernst-Happel-Stadion y sitios similares señalizan zonas de remolque temporales para ferias, conciertos o partidos — siempre con carteles previos en el lugar.',
+      other3b:'Puestos de carga eléctrica', other3s:'Reservados solo para cargar — estacionar ahí sin cargar puede terminar en remolque.',
+      other4b:'Ferias semanales', other4s:'Las calles con feria (Naschmarkt, Brunnenmarkt, etc.) prohíben estacionar en el horario de feria, varios días por semana.',
+      other5b:'Paradas de taxi y limpieza de calles', other5s:'Los lugares "Taxi" están reservados todo el tiempo; a veces un cartel atado al poste suspende el estacionamiento por limpieza — revisá el poste, no solo el cartel principal.',
+      rulesTitle:'Regla general (23 distritos, desde 2022)',
+      rule1:'<b>Lunes a viernes, 9 a 22h:</b> zona paga en toda la ciudad. Parkschein obligatorio, máximo 2 horas sin Parkpickerl.',
+      rule2:'<b>Sábados, domingos y feriados:</b> estacionamiento libre en la mayoría de la ciudad (excepto zonas especiales como Stadthalle).',
+      rule3:'<b>Tarifa 2026:</b> €1,70 cada 30 min. Gratis los primeros 15 min, pero igual hay que completar el Parkschein.',
+      rule4:'<b>Con Parkpickerl</b> de tu distrito: sin límite de tiempo ni costo, salvo en calles comerciales.',
+      payTitle:'Cómo pagar',
+      payText:'Además del Parkschein de papel, podés pagar por celular con <b>HANDYPARKEN</b>, la app oficial: te registrás una vez, cargás crédito, y arrancás/parás la sesión de estacionamiento desde el teléfono — no hace falta exhibir nada en el tablero.',
+      payLinkText:'Info oficial y descarga — wien.gv.at/verkehr/handyparken',
+      footer:'Esta herramienta estima el estado según la regla general de la Ciudad de Viena — no es asesoramiento oficial. No reemplaza el cartel del lugar, y si querés estar seguro, siempre chequeá las fuentes oficiales.<br>Fuente: wien.gv.at (Parkraumbewirtschaftung)',
+      days:['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'],
+      holidaySuffix:' · feriado', tz:'(Viena)', changesIn:'Cambia en',
+      s_check:{h:'Fijate en el cartel', d:'Marcaste que la señalización local es distinta a la regla general. El cartel del lugar siempre manda.'},
+      s_free:{h:'Sí, podés estacionar', d:'Fuera del horario de Kurzparkzone: no se paga ni se necesita Parkschein.'},
+      s_freePickerl:{h:'Sí, con tu Parkpickerl', d:'Es horario de zona paga, pero tu Parkpickerl te exime del límite de tiempo y del costo en este distrito.'},
+      s_paid:{h:'Es zona paga ahora', d:'Necesitás Parkschein. Máximo 2 horas. €1,70 cada 30 min (gratis los primeros 15 min, pero hay que completarlo igual).'},
+      s_disability:{h:'Sí, gratis con tu pase', d:'Con el pase de discapacidad (§29b) válido y visible, se estaciona gratis y sin límite de tiempo acá.'},
+      s_loading:{h:'Solo si estás cargando', d:'Las Ladezonen son solo para vehículos cargando o descargando en el momento. Si no es tu caso, este lugar no aplica para vos sin importar la hora.'},
+      s_reserved:{h:'No, este lugar está reservado', d:'Solo pueden estacionar los vehículos con el permiso específico del cartel (vecinos, etc.) — no depende de la hora ni de tu Parkpickerl.'},
+      s_disc:{h:'Sí, con disco horario', d:'Mostrá tu hora de llegada en la Parkscheibe. Es gratis, pero fijate en el cartel el tiempo máximo permitido (suele ser 1 a 2 horas).'}
+    }
+  };
+
+  let lang = 'en';
+
+  function applyStatic(){
+    const t = STR[lang];
+    document.title = t.docTitle;
+    document.documentElement.lang = lang;
+    $('txt-title').textContent = t.title;
+    $('txt-subtitle').innerHTML = t.subtitle;
+    $('txt-situationTitle').textContent = t.situationTitle;
+    $('txt-pickerlLabel').firstChild.textContent = t.pickerlLabel;
+    $('txt-pickerlSub').textContent = t.pickerlSub;
+    $('txt-businessLabel').firstChild.textContent = t.businessLabel;
+    $('txt-businessSub').textContent = t.businessSub;
+    $('txt-stadthalleLabel').firstChild.textContent = t.stadthalleLabel;
+    $('txt-stadthalleSub').textContent = t.stadthalleSub;
+    $('txt-specialTitle').textContent = t.specialTitle;
+    $('txt-disabilityLabel').firstChild.textContent = t.disabilityLabel;
+    $('txt-disabilitySub').textContent = t.disabilitySub;
+    $('txt-loadingLabel').firstChild.textContent = t.loadingLabel;
+    $('txt-loadingSub').textContent = t.loadingSub;
+    $('txt-reservedLabel').firstChild.textContent = t.reservedLabel;
+    $('txt-reservedSub').textContent = t.reservedSub;
+    $('txt-discLabel').firstChild.textContent = t.discLabel;
+    $('txt-discSub').textContent = t.discSub;
+    $('txt-exceptionLabel').firstChild.textContent = t.exceptionLabel;
+    $('txt-exceptionSub').textContent = t.exceptionSub;
+    $('txt-otherSummary').textContent = t.otherSummary;
+    $('txt-other1-b').textContent = t.other1b; $('txt-other1-s').textContent = t.other1s;
+    $('txt-other2-b').textContent = t.other2b; $('txt-other2-s').textContent = t.other2s;
+    $('txt-other3-b').textContent = t.other3b; $('txt-other3-s').textContent = t.other3s;
+    $('txt-other4-b').textContent = t.other4b; $('txt-other4-s').textContent = t.other4s;
+    $('txt-other5-b').textContent = t.other5b; $('txt-other5-s').textContent = t.other5s;
+    $('txt-rulesTitle').textContent = t.rulesTitle;
+    $('txt-rule1').innerHTML = t.rule1;
+    $('txt-rule2').innerHTML = t.rule2;
+    $('txt-rule3').innerHTML = t.rule3;
+    $('txt-rule4').innerHTML = t.rule4;
+    $('txt-payTitle').textContent = t.payTitle;
+    $('txt-payText').innerHTML = t.payText;
+    $('txt-payLink').innerHTML = t.payLinkText;
+    $('txt-footer').innerHTML = t.footer;
+    els.langEN.classList.toggle('active', lang==='en');
+    els.langES.classList.toggle('active', lang==='es');
+  }
+
+  els.langEN.addEventListener('click', ()=>{ lang='en'; applyStatic(); render(); });
+  els.langES.addEventListener('click', ()=>{ lang='es'; applyStatic(); render(); });
+
+  // Vienna local time via Intl, independent of device timezone
+  function viennaNow(){
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone:'Europe/Vienna', hour12:false,
+      year:'numeric', month:'2-digit', day:'2-digit',
+      hour:'2-digit', minute:'2-digit', second:'2-digit', weekday:'short'
+    });
+    const parts = {};
+    fmt.formatToParts(new Date()).forEach(p => parts[p.type] = p.value);
+    const map = {Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+    return {
+      year:+parts.year, month:+parts.month, day:+parts.day,
+      hour: parts.hour === '24' ? 0 : +parts.hour, minute:+parts.minute, second:+parts.second,
+      weekday: map[parts.weekday],
+      minutesOfDay: (parts.hour==='24'?0:+parts.hour)*60 + +parts.minute
+    };
+  }
+
+  // Easter Sunday (Meeus/Jones/Butcher), returns {month, day}
+  function easter(year){
+    const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,
+      f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+      h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,
+      l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),
+      month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;
+    return {month, day};
+  }
+
+  function addDays(y,m,d,n){
+    const dt = new Date(Date.UTC(y, m-1, d));
+    dt.setUTCDate(dt.getUTCDate()+n);
+    return {y:dt.getUTCFullYear(), m:dt.getUTCMonth()+1, d:dt.getUTCDate()};
+  }
+
+  function austrianHolidays(year){
+    const fixed = [
+      [1,1],[1,6],[5,1],[8,15],[10,26],[11,1],[12,8],[12,25],[12,26]
+    ].map(([m,d])=>({y:year,m,d}));
+    const e = easter(year);
+    const movable = [
+      addDays(year,e.month,e.day,1),   // Easter Monday
+      addDays(year,e.month,e.day,39),  // Ascension Day
+      addDays(year,e.month,e.day,50),  // Whit Monday
+      addDays(year,e.month,e.day,60),  // Corpus Christi
+    ];
+    return [...fixed, ...movable].map(x=>`${x.y}-${x.m}-${x.d}`);
+  }
+
+  function isHoliday(v){
+    const keys = new Set([...austrianHolidays(v.year-1), ...austrianHolidays(v.year), ...austrianHolidays(v.year+1)]);
+    return keys.has(`${v.year}-${v.month}-${v.day}`);
+  }
+
+  // Priority: explicit override > hard restrictions (reserved/loading) > disc > disability > standard time-based calc
+  function stateAt(v, opts){
+    if(opts.exception) return 'check';
+    if(opts.reserved) return 'reserved';
+    if(opts.loading) return 'loading';
+    if(opts.disc) return 'disc';
+    if(opts.disability) return 'free_disability';
+    const weekday = v.weekday>=1 && v.weekday<=5;
+    const holiday = isHoliday(v);
+    const mins = v.minutesOfDay;
+    const inStandard = weekday && !holiday && mins>=9*60 && mins<22*60;
+    const inStadthalleWeekend = opts.stadthalle && (!weekday || holiday) && mins>=18*60 && mins<22*60;
+    const zonePaid = inStandard || inStadthalleWeekend;
+    if(!zonePaid) return 'free';
+    if(opts.pickerl && !opts.business) return 'free_pickerl';
+    return 'paid';
+  }
+
+  const TIME_BASED = ['free','free_pickerl','paid'];
+
+  function render(){
+    const t = STR[lang];
+    const v = viennaNow();
+    const opts = {
+      pickerl: els.tPickerl.checked,
+      business: els.tBusiness.checked,
+      stadthalle: els.tStadthalle.checked,
+      disability: els.tDisability.checked,
+      loading: els.tLoading.checked,
+      reserved: els.tReserved.checked,
+      disc: els.tDisc.checked,
+      exception: els.tException.checked
+    };
+    const state = stateAt(v, opts);
+
+    els.clockTime.textContent =
+      String(v.hour).padStart(2,'0')+':'+String(v.minute).padStart(2,'0')+':'+String(v.second).padStart(2,'0')+' '+t.tz;
+    els.clockDay.textContent = t.days[v.weekday] + (isHoliday(v) ? t.holidaySuffix : '');
+
+    els.card.classList.remove('state-free','state-paid','state-check');
+
+    const map = {
+      check:{cls:'state-check', icon:'?', s:t.s_check},
+      reserved:{cls:'state-paid', icon:'✕', s:t.s_reserved},
+      loading:{cls:'state-check', icon:'L', s:t.s_loading},
+      disc:{cls:'state-free', icon:'D', s:t.s_disc},
+      free_disability:{cls:'state-free', icon:'♿', s:t.s_disability},
+      free:{cls:'state-free', icon:'P', s:t.s_free},
+      free_pickerl:{cls:'state-free', icon:'P', s:t.s_freePickerl},
+      paid:{cls:'state-paid', icon:'€', s:t.s_paid}
+    };
+    const m = map[state];
+    els.card.classList.add(m.cls);
+    els.icon.textContent = m.icon;
+    els.headline.textContent = m.s.h;
+    els.detail.textContent = m.s.d;
+
+    els.ring.style.setProperty('--pct', (v.second/60*100)+'%');
+    els.countdown.textContent = TIME_BASED.includes(state) ? nextChangeLabel(v, opts, state, t) : '';
+  }
+
+  function nextChangeLabel(v, opts, currentState, t){
+    let y=v.year, mo=v.month, d=v.day, h=v.hour, mi=v.minute;
+    let wd = v.weekday;
+    for(let step=1; step<=4*24*60; step++){
+      mi++;
+      if(mi>=60){mi=0;h++;}
+      if(h>=24){h=0;d++;wd=(wd+1)%7;
+        const dt = new Date(Date.UTC(y,mo-1,d));
+        y=dt.getUTCFullYear();mo=dt.getUTCMonth()+1;d=dt.getUTCDate();
+      }
+      const vv = {year:y,month:mo,day:d,weekday:wd,minutesOfDay:h*60+mi};
+      const s = stateAt(vv, opts);
+      const simplified = s==='free_pickerl' ? 'free' : s;
+      const currentSimplified = currentState==='free_pickerl' ? 'free' : currentState;
+      if(simplified !== currentSimplified){
+        const totalMin = step - v.second/60;
+        const hh = Math.floor(totalMin/60), mm = Math.round(totalMin%60);
+        const when = hh>0 ? `${hh}h ${mm}min` : `${mm}min`;
+        return `${t.changesIn} ${when}`;
+      }
+    }
+    return '';
+  }
+
+  [els.tPickerl, els.tBusiness, els.tStadthalle, els.tDisability, els.tLoading, els.tReserved, els.tDisc, els.tException].forEach(el=>{
+    el.addEventListener('change', render);
+  });
+
+  applyStatic();
+  render();
+  setInterval(render, 1000);
+})();
+</script>
+</body>
+</html>
