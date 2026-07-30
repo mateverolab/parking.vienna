@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Can I park here? — Vienna live</title>
 <script defer src="https://cloud.umami.is/script.js" data-website-id="5de2269b-087d-49b3-8987-30c6e00ecee7"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root{
     --blue-deep:#0a3d62;
@@ -21,6 +23,8 @@
     --red-bg:#f6e5e2;
     --amber:#9a6b13;
     --amber-bg:#f6ecd4;
+    --purple:#6a3d9a;
+    --teal:#1b8a7a;
     --line:#d9d2c2;
     --radius:18px;
     --shadow:0 10px 30px -12px rgba(10,61,98,0.25);
@@ -38,6 +42,7 @@
     padding:28px 16px 60px;
   }
   .page{width:100%;max-width:460px;position:relative;}
+  .page.wide{max-width:640px;}
 
   .langswitch{
     position:absolute;top:-6px;right:0;
@@ -57,7 +62,7 @@
   }
   .ornament svg{width:120px;height:14px;}
 
-  header{text-align:center;margin-bottom:22px;padding-top:20px;}
+  header{text-align:center;margin-bottom:16px;padding-top:20px;}
   header h1{
     font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;
     font-size:1.7rem;
@@ -71,6 +76,19 @@
     font-size:0.92rem;
   }
   header p b{color:var(--blue);}
+
+  .tabbar{
+    display:flex;gap:4px;background:var(--blue-pale);border-radius:100px;padding:4px;
+    margin:16px auto 20px;max-width:360px;
+  }
+  .tabbar button{
+    flex:1;border:none;background:transparent;padding:9px 10px;border-radius:100px;
+    font-size:0.85rem;font-weight:700;color:var(--blue-deep);cursor:pointer;
+  }
+  .tabbar button.active{background:var(--blue-deep);color:#fff;}
+
+  .view{display:none;}
+  .view.active{display:block;}
 
   .status-card{
     background:#fff;
@@ -111,40 +129,20 @@
     color:#fff;
   }
 
-  .status-headline{
-    font-size:1.35rem;
-    font-weight:700;
-    margin:0 0 6px;
-    color:var(--ink);
-  }
-  .status-detail{
-    margin:0;
-    color:var(--ink-soft);
-    font-size:0.95rem;
-    line-height:1.5;
-  }
+  .status-headline{font-size:1.35rem;font-weight:700;margin:0 0 6px;color:var(--ink);}
+  .status-detail{margin:0;color:var(--ink-soft);font-size:0.95rem;line-height:1.5;}
   .countdown{
-    margin:14px auto 0;
-    display:inline-block;
-    font-size:0.82rem;
-    color:var(--blue-deep);
-    background:rgba(10,61,98,0.07);
-    padding:6px 14px;
-    border-radius:100px;
+    margin:14px auto 0;display:inline-block;font-size:0.82rem;color:var(--blue-deep);
+    background:rgba(10,61,98,0.07);padding:6px 14px;border-radius:100px;
   }
   .countdown:empty{display:none;}
 
   .clock-row{
     display:flex;justify-content:space-between;align-items:baseline;
-    margin:16px 4px 22px;
-    color:var(--ink-soft);
-    font-size:0.85rem;
+    margin:16px 4px 22px;color:var(--ink-soft);font-size:0.85rem;
   }
   .clock-row #clockTime{
-    font-variant-numeric:tabular-nums;
-    font-size:1.05rem;
-    color:var(--blue-deep);
-    font-weight:600;
+    font-variant-numeric:tabular-nums;font-size:1.05rem;color:var(--blue-deep);font-weight:600;
   }
 
   .card{
@@ -213,14 +211,48 @@
   details.other-signs .sign-item b{display:block;font-size:0.89rem;color:var(--ink);margin-bottom:2px;}
   details.other-signs .sign-item span{font-size:0.83rem;color:var(--ink-soft);line-height:1.5;}
 
-  footer{
-    text-align:center;margin-top:8px;color:var(--ink-soft);font-size:0.76rem;line-height:1.6;
-  }
+  footer{text-align:center;margin-top:8px;color:var(--ink-soft);font-size:0.76rem;line-height:1.6;}
   footer a{color:var(--blue);}
+
+  /* ---- map view ---- */
+  .controls-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;}
+  .btn{
+    display:inline-flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:700;
+    color:#fff;background:var(--blue-deep);padding:9px 16px;border-radius:100px;
+    border:none;cursor:pointer;
+  }
+  .btn:hover{background:var(--blue);}
+  .time-mode{display:flex;gap:4px;background:var(--blue-pale);border-radius:100px;padding:3px;}
+  .time-mode button{
+    border:none;background:transparent;padding:6px 12px;border-radius:100px;
+    font-size:0.78rem;font-weight:700;color:var(--blue-deep);cursor:pointer;
+  }
+  .time-mode button.active{background:var(--blue-deep);color:#fff;}
+  #planTime{font-size:0.85rem;padding:7px 10px;border-radius:10px;border:1px solid var(--line);font-family:inherit;}
+  .plan-row{display:none;margin-top:10px;}
+  .plan-row.show{display:flex;gap:8px;align-items:center;}
+  #mapview{width:100%;height:56vh;min-height:380px;border-radius:var(--radius);border:1px solid var(--line);box-shadow:var(--shadow);}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:0.76rem;color:var(--ink-soft);margin-top:12px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .dot{width:11px;height:11px;border-radius:50%;display:inline-block;flex:none;}
+  .dot.free{background:var(--green);} .dot.paid{background:var(--red);}
+  .dot.anrainer{background:var(--purple);} .dot.taxi{background:var(--gold);}
+  .dot.bus{background:#3a4a5a;} .dot.disability{background:var(--blue-deep);}
+  .dot.ev{background:var(--teal);}
+  .layer-toggles{margin-top:6px;}
+  .locate-summary{display:none;}
+  .locate-summary.show{display:block;}
+  .locate-summary .headline{font-weight:700;font-size:1rem;margin:0 0 4px;}
+  .locate-summary .detail{font-size:0.85rem;color:var(--ink-soft);margin:0;}
+  .locate-summary.state-free{background:var(--green-bg);}
+  .locate-summary.state-paid{background:var(--red-bg);}
+  .locate-summary.state-unknown{background:var(--amber-bg);}
+  .leaflet-popup-content{font-size:0.8rem;line-height:1.5;}
+  .leaflet-popup-content b{color:var(--blue-deep);}
 </style>
 </head>
 <body>
-<div class="page">
+<div class="page" id="page">
 
   <div class="langswitch" role="group" aria-label="Language">
     <button type="button" class="lang-btn" id="langEN">EN</button>
@@ -235,120 +267,174 @@
     <p id="txt-subtitle">Vienna Kurzparkzone — <b>live</b> status</p>
   </header>
 
-  <div class="status-card" id="statusCard">
-    <div class="dial" id="dial"><div class="ring" id="ring"></div><span id="dialIcon">P</span></div>
-    <p class="status-headline" id="statusHeadline">…</p>
-    <p class="status-detail" id="statusDetail"></p>
-    <span class="countdown" id="countdown"></span>
+  <div class="tabbar">
+    <button class="active" id="tabBtnChecker">Spot checker</button>
+    <button id="tabBtnMap">Live map</button>
   </div>
 
-  <div class="clock-row">
-    <span id="clockDay">—</span>
-    <span id="clockTime">--:--:--</span>
+  <!-- ============ CHECKER VIEW ============ -->
+  <div class="view active" id="view-checker">
+
+    <div class="status-card" id="statusCard">
+      <div class="dial" id="dial"><div class="ring" id="ring"></div><span id="dialIcon">P</span></div>
+      <p class="status-headline" id="statusHeadline">…</p>
+      <p class="status-detail" id="statusDetail"></p>
+      <span class="countdown" id="countdown"></span>
+    </div>
+
+    <div class="clock-row">
+      <span id="clockDay">—</span>
+      <span id="clockTime">--:--:--</span>
+    </div>
+
+    <div class="card">
+      <h3 id="txt-situationTitle">Your situation</h3>
+      <div class="toggle-row">
+        <div class="label" id="txt-pickerlLabel">I have a Parkpickerl for this district
+          <small id="txt-pickerlSub">Valid at your home district, not on business streets</small>
+        </div>
+        <label class="switch"><input type="checkbox" id="tPickerl"><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div class="label" id="txt-businessLabel">This is a business street (Geschäftsstraße)
+          <small id="txt-businessSub">Parkpickerl doesn't exempt you here</small>
+        </div>
+        <label class="switch"><input type="checkbox" id="tBusiness"><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div class="label" id="txt-stadthalleLabel">I'm near the Wiener Stadthalle
+          <small id="txt-stadthalleSub">Special zone: also paid Sat/Sun/holidays 18–22h</small>
+        </div>
+        <label class="switch"><input type="checkbox" id="tStadthalle"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 id="txt-specialTitle">Special cases on the sign</h3>
+      <div class="toggle-row">
+        <div class="label" id="txt-disabilityLabel">I have a disability permit (§29b)
+          <small id="txt-disabilitySub">Free, unlimited time, anywhere in the zone</small>
+        </div>
+        <label class="switch"><input type="checkbox" id="tDisability"><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div class="label" id="txt-loadingLabel">This is a loading zone (Ladezone)
+          <small id="txt-loadingSub">Only for vehicles actively loading/unloading</small>
+        </div>
+        <label class="switch"><input type="checkbox" id="tLoading"><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div class="label" id="txt-reservedLabel">Sign reserves this spot for someone else
+          <small id="txt-reservedSub">e.g. "ausgenommen Anrainer" — residents/permit only</small>
+        </div>
+        <label class="switch"><input type="checkbox" id="tReserved"><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div class="label" id="txt-discLabel">It's a disc-parking zone (Parkscheibe)
+          <small id="txt-discSub">Free but time-limited — no paid Parkschein needed</small>
+        </div>
+        <label class="switch"><input type="checkbox" id="tDisc"><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div class="label" id="txt-exceptionLabel">Sign says something else entirely
+          <small id="txt-exceptionSub">Local signage always overrides this app</small>
+        </div>
+        <label class="switch"><input type="checkbox" id="tException"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <details class="other-signs">
+      <summary id="txt-otherSummary">Other signs you might run into</summary>
+      <div class="sign-item">
+        <b id="txt-other1-b">Craftsperson sticker (Handwerkerparkkleber)</b>
+        <span id="txt-other1-s">Registered trade vehicles may park beyond the 2-hour limit, Mon–Fri 8:00–16:00, in the districts where it's approved.</span>
+      </div>
+      <div class="sign-item">
+        <b id="txt-other2-b">Event closures</b>
+        <span id="txt-other2-s">Rathausplatz, Stadthalle, Ernst-Happel-Stadion and similar sites post temporary tow-away zones for markets, concerts or matches — dates are always signed on-site in advance.</span>
+      </div>
+      <div class="sign-item">
+        <b id="txt-other3-b">EV charging bays</b>
+        <span id="txt-other3-s">Marked for charging only — parking there without actually charging can get you towed.</span>
+      </div>
+      <div class="sign-item">
+        <b id="txt-other4-b">Weekly markets</b>
+        <span id="txt-other4-s">Streets hosting markets (Naschmarkt, Brunnenmarkt, etc.) ban parking during market hours, several days a week.</span>
+      </div>
+      <div class="sign-item">
+        <b id="txt-other5-b">Taxi stands &amp; street cleaning</b>
+        <span id="txt-other5-s">"Taxi" bays are reserved at all times; occasional zip-tied signs suspend parking temporarily for street cleaning — check the pole, not just the main sign.</span>
+      </div>
+    </details>
+
+    <div class="card rules">
+      <h3 id="txt-rulesTitle">General rule (all 23 districts, since 2022)</h3>
+      <p id="txt-rule1"><b>Mon–Fri, 9:00–22:00:</b> paid zone city-wide. Parkschein required, max. 2 hours without a Parkpickerl.</p>
+      <p id="txt-rule2"><b>Saturdays, Sundays and public holidays:</b> free parking in most of the city (except special zones like Stadthalle).</p>
+      <p id="txt-rule3"><b>2026 rate:</b> €1.70 per 30 min. Free for the first 15 min, but you still must fill out the Parkschein.</p>
+      <p id="txt-rule4"><b>With a Parkpickerl</b> for your district: no time limit, no cost — except on business streets.</p>
+    </div>
+
+    <div class="card">
+      <h3 id="txt-payTitle">How to pay</h3>
+      <p class="pay-text" id="txt-payText">Besides the paper Parkschein, you can pay by phone with <b>HANDYPARKEN</b>, the official app: register once, top up credit, and start/stop your parking session from your phone — no need to display anything on the dashboard.</p>
+      <a class="pay-link" id="txt-payLink" href="https://www.wien.gv.at/verkehr/handyparken" target="_blank" rel="noopener">Official info &amp; download — wien.gv.at/verkehr/handyparken</a>
+    </div>
+
+    <footer id="txt-footer">
+      This tool estimates the status from the City of Vienna's general rule — it is not official advice. It doesn't replace the sign posted on-site, and if you want to be sure, always check the official sources.<br>
+      Source: wien.gv.at (Parkraumbewirtschaftung)
+    </footer>
   </div>
 
-  <div class="card">
-    <h3 id="txt-situationTitle">Your situation</h3>
-    <div class="toggle-row">
-      <div class="label" id="txt-pickerlLabel">I have a Parkpickerl for this district
-        <small id="txt-pickerlSub">Valid at your home district, not on business streets</small>
+  <!-- ============ MAP VIEW ============ -->
+  <div class="view" id="view-map">
+    <div class="card">
+      <div class="controls-row">
+        <button class="btn" id="btnLocate">📍 <span id="txt-locate">Locate me</span></button>
+        <div class="time-mode">
+          <button class="active" id="modeNow">Now</button>
+          <button id="modePlan">Plan ahead</button>
+        </div>
       </div>
-      <label class="switch"><input type="checkbox" id="tPickerl"><span class="slider"></span></label>
-    </div>
-    <div class="toggle-row">
-      <div class="label" id="txt-businessLabel">This is a business street (Geschäftsstraße)
-        <small id="txt-businessSub">Parkpickerl doesn't exempt you here</small>
+      <div class="plan-row" id="planRow">
+        <input type="datetime-local" id="planTime">
       </div>
-      <label class="switch"><input type="checkbox" id="tBusiness"><span class="slider"></span></label>
-    </div>
-    <div class="toggle-row">
-      <div class="label" id="txt-stadthalleLabel">I'm near the Wiener Stadthalle
-        <small id="txt-stadthalleSub">Special zone: also paid Sat/Sun/holidays 18–22h</small>
+      <div class="legend">
+        <span><i class="dot free"></i><span id="txt-legFree">Free now</span></span>
+        <span><i class="dot paid"></i><span id="txt-legPaid">Paid now</span></span>
+        <span><i class="dot anrainer"></i><span id="txt-legAnrainer">Residents only</span></span>
+        <span><i class="dot taxi"></i><span id="txt-legTaxi">Taxi stand</span></span>
+        <span><i class="dot bus"></i><span id="txt-legBus">Bus stop</span></span>
+        <span><i class="dot disability"></i><span id="txt-legDisability">Disability</span></span>
+        <span><i class="dot ev"></i><span id="txt-legEv">EV charging</span></span>
       </div>
-      <label class="switch"><input type="checkbox" id="tStadthalle"><span class="slider"></span></label>
+      <div class="layer-toggles">
+        <div class="toggle-row">
+          <div class="label" id="txt-noParkTitle">Show "no parking" spots (default: private car, no Parkpickerl)</div>
+          <label class="switch"><input type="checkbox" id="tNoParkAll" checked><span class="slider"></span></label>
+        </div>
+      </div>
     </div>
+
+    <div class="card locate-summary" id="locateSummary">
+      <p class="headline" id="locateHeadline"></p>
+      <p class="detail" id="locateDetail"></p>
+    </div>
+
+    <div id="mapview"></div>
+
+    <footer id="txt-mapFooter" style="margin-top:14px;">
+      Data: City of Vienna Open Government Data (data.wien.gv.at) — Kurzparkzonen, Anrainerparken, Ladezonen, Taxistandplätze, Bushaltezonen, Behindertenparkplätze &amp; E-Ladestellen layers. Not official advice — check the sign on-site.<br>
+      Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.
+    </footer>
   </div>
 
-  <div class="card">
-    <h3 id="txt-specialTitle">Special cases on the sign</h3>
-    <div class="toggle-row">
-      <div class="label" id="txt-disabilityLabel">I have a disability permit (§29b)
-        <small id="txt-disabilitySub">Free, unlimited time, anywhere in the zone</small>
-      </div>
-      <label class="switch"><input type="checkbox" id="tDisability"><span class="slider"></span></label>
-    </div>
-    <div class="toggle-row">
-      <div class="label" id="txt-loadingLabel">This is a loading zone (Ladezone)
-        <small id="txt-loadingSub">Only for vehicles actively loading/unloading</small>
-      </div>
-      <label class="switch"><input type="checkbox" id="tLoading"><span class="slider"></span></label>
-    </div>
-    <div class="toggle-row">
-      <div class="label" id="txt-reservedLabel">Sign reserves this spot for someone else
-        <small id="txt-reservedSub">e.g. "ausgenommen Anrainer" — residents/permit only</small>
-      </div>
-      <label class="switch"><input type="checkbox" id="tReserved"><span class="slider"></span></label>
-    </div>
-    <div class="toggle-row">
-      <div class="label" id="txt-discLabel">It's a disc-parking zone (Parkscheibe)
-        <small id="txt-discSub">Free but time-limited — no paid Parkschein needed</small>
-      </div>
-      <label class="switch"><input type="checkbox" id="tDisc"><span class="slider"></span></label>
-    </div>
-    <div class="toggle-row">
-      <div class="label" id="txt-exceptionLabel">Sign says something else entirely
-        <small id="txt-exceptionSub">Local signage always overrides this app</small>
-      </div>
-      <label class="switch"><input type="checkbox" id="tException"><span class="slider"></span></label>
-    </div>
-  </div>
-
-  <details class="other-signs">
-    <summary id="txt-otherSummary">Other signs you might run into</summary>
-    <div class="sign-item">
-      <b id="txt-other1-b">Craftsperson sticker (Handwerkerparkkleber)</b>
-      <span id="txt-other1-s">Registered trade vehicles may park beyond the 2-hour limit, Mon–Fri 8:00–16:00, in the districts where it's approved.</span>
-    </div>
-    <div class="sign-item">
-      <b id="txt-other2-b">Event closures</b>
-      <span id="txt-other2-s">Rathausplatz, Stadthalle, Ernst-Happel-Stadion and similar sites post temporary tow-away zones for markets, concerts or matches — dates are always signed on-site in advance.</span>
-    </div>
-    <div class="sign-item">
-      <b id="txt-other3-b">EV charging bays</b>
-      <span id="txt-other3-s">Marked for charging only — parking there without actually charging can get you towed.</span>
-    </div>
-    <div class="sign-item">
-      <b id="txt-other4-b">Weekly markets</b>
-      <span id="txt-other4-s">Streets hosting markets (Naschmarkt, Brunnenmarkt, etc.) ban parking during market hours, several days a week.</span>
-    </div>
-    <div class="sign-item">
-      <b id="txt-other5-b">Taxi stands &amp; street cleaning</b>
-      <span id="txt-other5-s">"Taxi" bays are reserved at all times; occasional zip-tied signs suspend parking temporarily for street cleaning — check the pole, not just the main sign.</span>
-    </div>
-  </details>
-
-  <div class="card rules">
-    <h3 id="txt-rulesTitle">General rule (all 23 districts, since 2022)</h3>
-    <p id="txt-rule1"><b>Mon–Fri, 9:00–22:00:</b> paid zone city-wide. Parkschein required, max. 2 hours without a Parkpickerl.</p>
-    <p id="txt-rule2"><b>Saturdays, Sundays and public holidays:</b> free parking in most of the city (except special zones like Stadthalle).</p>
-    <p id="txt-rule3"><b>2026 rate:</b> €1.70 per 30 min. Free for the first 15 min, but you still must fill out the Parkschein.</p>
-    <p id="txt-rule4"><b>With a Parkpickerl</b> for your district: no time limit, no cost — except on business streets.</p>
-  </div>
-
-  <div class="card">
-    <h3 id="txt-payTitle">How to pay</h3>
-    <p class="pay-text" id="txt-payText">Besides the paper Parkschein, you can pay by phone with <b>HANDYPARKEN</b>, the official app: register once, top up credit, and start/stop your parking session from your phone — no need to display anything on the dashboard.</p>
-    <a class="pay-link" id="txt-payLink" href="https://www.wien.gv.at/verkehr/handyparken" target="_blank" rel="noopener">Official info &amp; download — wien.gv.at/verkehr/handyparken</a>
-  </div>
-
-  <footer id="txt-footer">
-    This tool estimates the status from the City of Vienna's general rule — it is not official advice. It doesn't replace the sign posted on-site, and if you want to be sure, always check the official sources.<br>
-    Source: wien.gv.at (Parkraumbewirtschaftung)
-  </footer>
 </div>
 
 <script>
-(function(){
+/* ================= CHECKER MODULE ================= */
+const CheckerApp = (function(){
   const $ = id => document.getElementById(id);
   const els = {
     card: $('statusCard'), dial: $('dial'), ring: $('ring'), icon: $('dialIcon'),
@@ -356,8 +442,7 @@
     clockTime: $('clockTime'), clockDay: $('clockDay'),
     tPickerl: $('tPickerl'), tBusiness: $('tBusiness'), tStadthalle: $('tStadthalle'),
     tDisability: $('tDisability'), tLoading: $('tLoading'), tReserved: $('tReserved'),
-    tDisc: $('tDisc'), tException: $('tException'),
-    langEN: $('langEN'), langES: $('langES')
+    tDisc: $('tDisc'), tException: $('tException')
   };
 
   const STR = {
@@ -365,6 +450,7 @@
       docTitle:'Can I park here? — Vienna live',
       title:'Can I park here?',
       subtitle:'Vienna Kurzparkzone — <b>live</b> status',
+      tabChecker:'Spot checker', tabMap:'Live map',
       situationTitle:'Your situation',
       pickerlLabel:'I have a Parkpickerl for this district', pickerlSub:"Valid at your home district, not on business streets",
       businessLabel:'This is a business street (Geschäftsstraße)', businessSub:"Parkpickerl doesn't exempt you here",
@@ -405,6 +491,7 @@
       docTitle:'¿Puedo estacionar acá? — Viena en vivo',
       title:'¿Puedo estacionar acá?',
       subtitle:'Kurzparkzone de Viena — estado <b>en vivo</b>',
+      tabChecker:'Chequeo puntual', tabMap:'Mapa en vivo',
       situationTitle:'Tu situación',
       pickerlLabel:'Tengo Parkpickerl de este distrito', pickerlSub:'Válido para tu domicilio, no en calles comerciales',
       businessLabel:'Es una calle comercial (Geschäftsstraße)', businessSub:'El Parkpickerl no exime de pagar acá',
@@ -451,6 +538,8 @@
     document.documentElement.lang = lang;
     $('txt-title').textContent = t.title;
     $('txt-subtitle').innerHTML = t.subtitle;
+    $('tabBtnChecker').textContent = t.tabChecker;
+    $('tabBtnMap').textContent = t.tabMap;
     $('txt-situationTitle').textContent = t.situationTitle;
     $('txt-pickerlLabel').firstChild.textContent = t.pickerlLabel;
     $('txt-pickerlSub').textContent = t.pickerlSub;
@@ -484,12 +573,9 @@
     $('txt-payText').innerHTML = t.payText;
     $('txt-payLink').innerHTML = t.payLinkText;
     $('txt-footer').innerHTML = t.footer;
-    els.langEN.classList.toggle('active', lang==='en');
-    els.langES.classList.toggle('active', lang==='es');
+    $('langEN').classList.toggle('active', lang==='en');
+    $('langES').classList.toggle('active', lang==='es');
   }
-
-  els.langEN.addEventListener('click', ()=>{ lang='en'; applyStatic(); render(); });
-  els.langES.addEventListener('click', ()=>{ lang='es'; applyStatic(); render(); });
 
   // Vienna local time via Intl, independent of device timezone
   function viennaNow(){
@@ -509,7 +595,6 @@
     };
   }
 
-  // Easter Sunday (Meeus/Jones/Butcher), returns {month, day}
   function easter(year){
     const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,
       f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
@@ -518,33 +603,22 @@
       month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;
     return {month, day};
   }
-
   function addDays(y,m,d,n){
     const dt = new Date(Date.UTC(y, m-1, d));
     dt.setUTCDate(dt.getUTCDate()+n);
     return {y:dt.getUTCFullYear(), m:dt.getUTCMonth()+1, d:dt.getUTCDate()};
   }
-
   function austrianHolidays(year){
-    const fixed = [
-      [1,1],[1,6],[5,1],[8,15],[10,26],[11,1],[12,8],[12,25],[12,26]
-    ].map(([m,d])=>({y:year,m,d}));
+    const fixed = [[1,1],[1,6],[5,1],[8,15],[10,26],[11,1],[12,8],[12,25],[12,26]].map(([m,d])=>({y:year,m,d}));
     const e = easter(year);
-    const movable = [
-      addDays(year,e.month,e.day,1),   // Easter Monday
-      addDays(year,e.month,e.day,39),  // Ascension Day
-      addDays(year,e.month,e.day,50),  // Whit Monday
-      addDays(year,e.month,e.day,60),  // Corpus Christi
-    ];
+    const movable = [addDays(year,e.month,e.day,1),addDays(year,e.month,e.day,39),addDays(year,e.month,e.day,50),addDays(year,e.month,e.day,60)];
     return [...fixed, ...movable].map(x=>`${x.y}-${x.m}-${x.d}`);
   }
-
   function isHoliday(v){
     const keys = new Set([...austrianHolidays(v.year-1), ...austrianHolidays(v.year), ...austrianHolidays(v.year+1)]);
     return keys.has(`${v.year}-${v.month}-${v.day}`);
   }
 
-  // Priority: explicit override > hard restrictions (reserved/loading) > disc > disability > standard time-based calc
   function stateAt(v, opts){
     if(opts.exception) return 'check';
     if(opts.reserved) return 'reserved';
@@ -568,14 +642,9 @@
     const t = STR[lang];
     const v = viennaNow();
     const opts = {
-      pickerl: els.tPickerl.checked,
-      business: els.tBusiness.checked,
-      stadthalle: els.tStadthalle.checked,
-      disability: els.tDisability.checked,
-      loading: els.tLoading.checked,
-      reserved: els.tReserved.checked,
-      disc: els.tDisc.checked,
-      exception: els.tException.checked
+      pickerl: els.tPickerl.checked, business: els.tBusiness.checked, stadthalle: els.tStadthalle.checked,
+      disability: els.tDisability.checked, loading: els.tLoading.checked, reserved: els.tReserved.checked,
+      disc: els.tDisc.checked, exception: els.tException.checked
     };
     const state = stateAt(v, opts);
 
@@ -636,6 +705,403 @@
   applyStatic();
   render();
   setInterval(render, 1000);
+
+  return {
+    setLang(l){ lang = l; applyStatic(); render(); }
+  };
+})();
+
+/* ================= MAP MODULE ================= */
+const MapApp = (function(){
+  const $ = id => document.getElementById(id);
+  let lang = 'en';
+  let inited = false;
+  let leafletMap = null;
+
+  const STR = {
+    en:{
+      legFree:'Free now', legPaid:'Paid now', legAnrainer:'Residents only', legTaxi:'Taxi stand',
+      legBus:'Bus stop', legDisability:'Disability', legEv:'EV charging',
+      noParkTitle:'Show "no parking" spots (default: private car, no Parkpickerl)',
+      locate:'Locate me', now:'Now', plan:'Plan ahead',
+      geoError:"Couldn't get your location — check your browser's location permission.",
+      inZone:h=>`District ${h.bezirk} — ${h.label}`,
+      free:'Free to park here right now.', paid:'Paid Kurzparkzone right now — Parkschein needed, max. ',
+      unknown:'This zone has a special schedule — check the sign.',
+      noZone:"You're not inside a mapped Kurzparkzone polygon right now.",
+      free_l:'free', paid_l:'paid', unknown_l:'special hours',
+      active_l:'restricted now', inactive_l:'not restricted right now',
+      popupZone:(bezirk,zeitraum,dauer,statusLabel)=>`<b>District ${bezirk}</b><br>${zeitraum}<br>Max. stay: ${dauer}<br>Right now: <b>${statusLabel}</b>`,
+      popupAnrainer:(adr,anz,txt)=>`<b>Residents only (Anrainerparken)</b><br>${adr}<br>${anz} spot(s)<br>${txt||''}`,
+      popupLadezone:(adr,zeitraum,fzg,status)=>`<b>Loading zone (Ladezone)</b><br>${adr}<br>${zeitraum} — ${fzg}<br>Right now: <b>${status}</b>`,
+      popupTaxi:(adr,anz)=>`<b>Taxi stand</b><br>${adr}<br>${anz} spot(s) — reserved at all times`,
+      popupBus:(name,adr,txt)=>`<b>Bus stop / stand</b><br>${name||adr}<br>${txt||''}`,
+      popupDisability:(str,onr,zeitraum,anz,desc,status)=>`<b>Disability parking</b><br>${str}${onr?' '+onr:''}<br>${zeitraum}<br>${anz} spot(s)${desc?'<br>'+desc:''}<br>Right now: <b>${status}</b>`,
+      popupEv:(addr,op)=>`<b>EV charging only</b><br>${addr}<br>${op||''}`
+    },
+    es:{
+      legFree:'Libre ahora', legPaid:'Pago ahora', legAnrainer:'Solo vecinos', legTaxi:'Parada de taxi',
+      legBus:'Parada de bus', legDisability:'Discapacidad', legEv:'Carga eléctrica',
+      noParkTitle:'Mostrar lugares "no estacionar" (default: auto particular, sin Parkpickerl)',
+      locate:'Mi ubicación', now:'Ahora', plan:'Planificar',
+      geoError:'No pudimos obtener tu ubicación — revisá el permiso de ubicación del navegador.',
+      inZone:h=>`Distrito ${h.bezirk} — ${h.label}`,
+      free:'Podés estacionar gratis acá ahora.', paid:'Zona paga ahora — necesitás Parkschein, máximo ',
+      unknown:'Esta zona tiene un horario especial — fijate en el cartel.',
+      noZone:'No estás dentro de ningún polígono de Kurzparkzone mapeado ahora mismo.',
+      free_l:'libre', paid_l:'pago', unknown_l:'horario especial',
+      active_l:'restringido ahora', inactive_l:'sin restricción ahora',
+      popupZone:(bezirk,zeitraum,dauer,statusLabel)=>`<b>Distrito ${bezirk}</b><br>${zeitraum}<br>Máximo: ${dauer}<br>Ahora: <b>${statusLabel}</b>`,
+      popupAnrainer:(adr,anz,txt)=>`<b>Solo vecinos (Anrainerparken)</b><br>${adr}<br>${anz} lugar(es)<br>${txt||''}`,
+      popupLadezone:(adr,zeitraum,fzg,status)=>`<b>Zona de carga (Ladezone)</b><br>${adr}<br>${zeitraum} — ${fzg}<br>Ahora: <b>${status}</b>`,
+      popupTaxi:(adr,anz)=>`<b>Parada de taxi</b><br>${adr}<br>${anz} lugar(es) — reservado siempre`,
+      popupBus:(name,adr,txt)=>`<b>Parada de bus</b><br>${name||adr}<br>${txt||''}`,
+      popupDisability:(str,onr,zeitraum,anz,desc,status)=>`<b>Estac. discapacidad</b><br>${str}${onr?' '+onr:''}<br>${zeitraum}<br>${anz} lugar(es)${desc?'<br>'+desc:''}<br>Ahora: <b>${status}</b>`,
+      popupEv:(addr,op)=>`<b>Solo carga eléctrica</b><br>${addr}<br>${op||''}`
+    }
+  };
+
+  function applyStatic(){
+    const t = STR[lang];
+    $('txt-legFree').textContent = t.legFree;
+    $('txt-legPaid').textContent = t.legPaid;
+    $('txt-legAnrainer').textContent = t.legAnrainer;
+    $('txt-legTaxi').textContent = t.legTaxi;
+    $('txt-legBus').textContent = t.legBus;
+    $('txt-legDisability').textContent = t.legDisability;
+    $('txt-legEv').textContent = t.legEv;
+    $('txt-noParkTitle').textContent = t.noParkTitle;
+    $('txt-locate').textContent = t.locate;
+    $('modeNow').textContent = t.now;
+    $('modePlan').textContent = t.plan;
+  }
+
+  // ---------- date / holiday helpers ----------
+  function viennaNowParts(customDate){
+    const base = customDate || new Date();
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone:'Europe/Vienna', hour12:false,
+      year:'numeric', month:'2-digit', day:'2-digit',
+      hour:'2-digit', minute:'2-digit', weekday:'short'
+    });
+    const parts = {};
+    fmt.formatToParts(base).forEach(p => parts[p.type] = p.value);
+    const map = {Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+    return {
+      year:+parts.year, month:+parts.month, day:+parts.day,
+      weekday: map[parts.weekday],
+      minutesOfDay: (parts.hour==='24'?0:+parts.hour)*60 + +parts.minute
+    };
+  }
+  function easter(year){
+    const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,
+      f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+      h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,
+      l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),
+      month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;
+    return {month, day};
+  }
+  function addDays(y,m,d,n){
+    const dt = new Date(Date.UTC(y, m-1, d));
+    dt.setUTCDate(dt.getUTCDate()+n);
+    return {y:dt.getUTCFullYear(), m:dt.getUTCMonth()+1, d:dt.getUTCDate()};
+  }
+  function austrianHolidays(year){
+    const fixed = [[1,1],[1,6],[5,1],[8,15],[10,26],[11,1],[12,8],[12,25],[12,26]].map(([m,d])=>({y:year,m,d}));
+    const e = easter(year);
+    const movable = [addDays(year,e.month,e.day,1),addDays(year,e.month,e.day,39),addDays(year,e.month,e.day,50),addDays(year,e.month,e.day,60)];
+    return [...fixed, ...movable].map(x=>`${x.y}-${x.m}-${x.d}`);
+  }
+  function isHoliday(v){
+    const keys = new Set([...austrianHolidays(v.year-1), ...austrianHolidays(v.year), ...austrianHolidays(v.year+1)]);
+    return keys.has(`${v.year}-${v.month}-${v.day}`);
+  }
+
+  // ---------- ZEITRAUM parser (Kurzparkzone + Behindertenparkplatz text format) ----------
+  const DAY_MAP = {Mo:1,Di:2,Mi:3,Do:4,Fr:5,Sa:6,So:0};
+  const WEEK_ORDER = [1,2,3,4,5,6,0];
+  function parseZeitraum(str){
+    if(!str) return null;
+    const clauses = str.split(';').map(s=>s.trim());
+    const segments = [];
+    for(const c of clauses){
+      const hourMatch = c.match(/v\.\s*(\d{1,2})\s*-\s*(\d{1,2})\s*(?:Uhr|h)\b/i);
+      if(!hourMatch) return null;
+      const fromMin = (+hourMatch[1])*60, toMin = (+hourMatch[2])*60;
+      const dayPart = c.split(/v\./)[0];
+      const rangeMatch = dayPart.match(/([A-Za-z]{2})\.\s*-\s*([A-Za-z]{2})\./);
+      let days = [];
+      if(rangeMatch && DAY_MAP[rangeMatch[1]]!==undefined && DAY_MAP[rangeMatch[2]]!==undefined){
+        const i1 = WEEK_ORDER.indexOf(DAY_MAP[rangeMatch[1]]), i2 = WEEK_ORDER.indexOf(DAY_MAP[rangeMatch[2]]);
+        if(i1<0||i2<0) return null;
+        for(let i=i1;i<=i2;i++) days.push(WEEK_ORDER[i]);
+      } else {
+        const singleMatch = dayPart.match(/([A-Za-z]{2})\./);
+        if(!singleMatch || DAY_MAP[singleMatch[1]]===undefined) return null;
+        days = [DAY_MAP[singleMatch[1]]];
+      }
+      segments.push({days, fromMin, toMin});
+    }
+    return segments;
+  }
+  function statusForSegments(segments, v){
+    if(!segments) return 'unknown';
+    if(isHoliday(v)) return 'free';
+    const active = segments.some(seg => seg.days.includes(v.weekday) && v.minutesOfDay>=seg.fromMin && v.minutesOfDay<seg.toMin);
+    return active ? 'paid' : 'free';
+  }
+
+  // Ladezone structured weekly schedule (LZ_1..LZ_5), bit string assumed Mon..Sun order
+  function ladezoneActive(props, v){
+    for(let i=1;i<=5;i++){
+      const wd = props[`LZ_${i}WEEKDAYS`];
+      const from = props[`LZ_${i}TIME_FROM`], to = props[`LZ_${i}TIME_TO`];
+      if(!wd || !from || !to) continue;
+      if(!/1/.test(wd)) continue;
+      const monFirstIdx = (v.weekday+6)%7; // convert Sun=0..Sat=6 -> Mon=0..Sun=6
+      if(wd[monFirstIdx] !== '1') continue;
+      const [fh,fm] = from.split(':').map(Number), [th,tm] = to.split(':').map(Number);
+      const fromMin = fh*60+fm, toMin = th*60+tm;
+      if(v.minutesOfDay>=fromMin && v.minutesOfDay<toMin) return true;
+    }
+    return false;
+  }
+
+  // ---------- point in polygon (ray casting) ----------
+  function pointInRing(pt, ring){
+    let inside = false;
+    for(let i=0, j=ring.length-1; i<ring.length; j=i++){
+      const xi=ring[i][0], yi=ring[i][1], xj=ring[j][0], yj=ring[j][1];
+      const intersect = ((yi>pt[1]) !== (yj>pt[1])) && (pt[0] < (xj-xi)*(pt[1]-yi)/(yj-yi)+xi);
+      if(intersect) inside = !inside;
+    }
+    return inside;
+  }
+  function pointInPolygonGeom(pt, geometry){
+    if(geometry.type==='Polygon'){
+      if(!pointInRing(pt, geometry.coordinates[0])) return false;
+      for(let i=1;i<geometry.coordinates.length;i++) if(pointInRing(pt, geometry.coordinates[i])) return false;
+      return true;
+    }
+    if(geometry.type==='MultiPolygon'){
+      return geometry.coordinates.some(poly => {
+        if(!pointInRing(pt, poly[0])) return false;
+        for(let i=1;i<poly.length;i++) if(pointInRing(pt, poly[i])) return false;
+        return true;
+      });
+    }
+    return false;
+  }
+
+  const COLORS = {free:'#2f6b3a', paid:'#a3372f', unknown:'#9a6b13'};
+  const WFS_BASE = 'https://data.wien.gv.at/daten/geo?service=WFS&request=GetFeature&version=1.1.0&srsName=EPSG:4326&outputFormat=json';
+
+  let zoneLayer, noParkLayer;
+  let zoneFeatures = [];
+  let noParkData = null; // cached fetch results for the 6 layers
+
+  function currentCheckTime(){
+    const mode = $('modePlan').classList.contains('active') ? 'plan' : 'now';
+    if(mode==='plan' && $('planTime').value){
+      return viennaNowParts(new Date($('planTime').value));
+    }
+    return viennaNowParts();
+  }
+  function statusLabel(status){
+    const t = STR[lang];
+    return status==='free' ? t.free_l : status==='paid' ? t.paid_l : t.unknown_l;
+  }
+
+  function redrawZones(){
+    const v = currentCheckTime();
+    zoneLayer.clearLayers();
+    zoneFeatures.forEach(f => {
+      const segments = parseZeitraum(f.properties.ZEITRAUM);
+      const status = statusForSegments(segments, v);
+      const layer = L.geoJSON(f, { style:{ color:COLORS[status], weight:1, fillColor:COLORS[status], fillOpacity:0.32 } });
+      layer.bindPopup(STR[lang].popupZone(f.properties.BEZIRK, f.properties.ZEITRAUM, f.properties.DAUER, statusLabel(status)));
+      layer.addTo(zoneLayer);
+    });
+  }
+
+  function redrawNoPark(){
+    if(!noParkData) return;
+    const v = currentCheckTime();
+    const t = STR[lang];
+    noParkLayer.clearLayers();
+
+    noParkData.anrainer.forEach(f=>{
+      const p = f.properties;
+      const layer = L.geoJSON(f, { style:{ color:'#6a3d9a', weight:4 } });
+      layer.bindPopup(t.popupAnrainer(p.ADRESSE, p.STELLPL_ANZ, p.AUSNAHME_TXT));
+      layer.addTo(noParkLayer);
+    });
+
+    noParkData.ladezone.forEach(f=>{
+      const p = f.properties;
+      const active = ladezoneActive(p, v);
+      const color = active ? '#a3372f' : '#b9b0a0';
+      const layer = L.geoJSON(f, { style:{ color, weight: active?4:2, dashArray: active?null:'4,4' } });
+      layer.bindPopup(t.popupLadezone(p.ADRESSE, p.ZEITRAUM||'', p.FZG_TXT||'', active ? t.active_l : t.inactive_l));
+      layer.addTo(noParkLayer);
+    });
+
+    noParkData.taxi.forEach(f=>{
+      const p = f.properties;
+      const layer = L.geoJSON(f, { style:{ color:'#c8971f', weight:4 } });
+      layer.bindPopup(t.popupTaxi(p.ADRESSE, p.STELLPLATZANZAHL));
+      layer.addTo(noParkLayer);
+    });
+
+    noParkData.bus.forEach(f=>{
+      const p = f.properties;
+      const layer = L.geoJSON(f, { style:{ color:'#3a4a5a', weight:4 } });
+      layer.bindPopup(t.popupBus(p.BEZEICHNUNG, p.ADRESSE, p.AUSN_TXT));
+      layer.addTo(noParkLayer);
+    });
+
+    noParkData.disability.forEach(f=>{
+      const p = f.properties;
+      const [lng,lat] = f.geometry.coordinates;
+      const segments = parseZeitraum(p.ZEITRAUM);
+      const status = statusForSegments(segments, v);
+      const marker = L.circleMarker([lat,lng], {radius:5, color:'#0a3d62', weight:1, fillColor:'#0a3d62', fillOpacity: status==='paid' || status==='unknown' ? 0.9 : 0.35});
+      marker.bindPopup(t.popupDisability(p.STRNAM, p.ONR_VON, p.ZEITRAUM, p.STELLPL_ANZ, p.BESCHREIBUNG, statusLabel(status)));
+      marker.addTo(noParkLayer);
+    });
+
+    noParkData.ev.forEach(f=>{
+      const p = f.properties;
+      const [lng,lat] = f.geometry.coordinates;
+      const marker = L.circleMarker([lat,lng], {radius:5, color:'#1b8a7a', weight:1, fillColor:'#1b8a7a', fillOpacity:0.85});
+      marker.bindPopup(t.popupEv(p.ADDRESS, p.OPERATORNAME));
+      marker.addTo(noParkLayer);
+    });
+  }
+
+  function redraw(){
+    if(!inited) return;
+    redrawZones();
+    redrawNoPark();
+  }
+
+  async function fetchLayer(typeName){
+    const res = await fetch(`${WFS_BASE}&typeName=ogdwien:${typeName}`);
+    const j = await res.json();
+    return j.features;
+  }
+
+  async function loadAll(){
+    const [zones, anrainer, ladezone, taxi, bus, disability, ev] = await Promise.all([
+      fetchLayer('KURZPARKZONEOGD'),
+      fetchLayer('PARKENANRAINEROGD'),
+      fetchLayer('LADEZONENOGD'),
+      fetchLayer('TAXIOGD'),
+      fetchLayer('BUSHALTEZONEOGD'),
+      fetchLayer('BEHINDERTENPARKPLATZOGD'),
+      fetchLayer('ELADESTELLEOGD')
+    ]);
+    zoneFeatures = zones;
+    noParkData = { anrainer, ladezone, taxi, bus, disability, ev };
+    redraw();
+  }
+
+  function wireControls(){
+    $('modeNow').addEventListener('click', ()=>{
+      $('modeNow').classList.add('active'); $('modePlan').classList.remove('active');
+      $('planRow').classList.remove('show'); redraw();
+    });
+    $('modePlan').addEventListener('click', ()=>{
+      $('modePlan').classList.add('active'); $('modeNow').classList.remove('active');
+      $('planRow').classList.add('show');
+      if(!$('planTime').value){
+        const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        $('planTime').value = d.toISOString().slice(0,16);
+      }
+      redraw();
+    });
+    $('planTime').addEventListener('change', redraw);
+
+    $('tNoParkAll').addEventListener('change', (e)=>{
+      if(e.target.checked){ noParkLayer.addTo(leafletMap); redrawNoPark(); }
+      else { leafletMap.removeLayer(noParkLayer); }
+    });
+
+    $('btnLocate').addEventListener('click', ()=>{
+      if(!navigator.geolocation){ alert(STR[lang].geoError); return; }
+      navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        leafletMap.setView([lat,lng], 17);
+        L.marker([lat,lng]).addTo(leafletMap);
+        const v = currentCheckTime();
+        const hit = zoneFeatures.find(f => pointInPolygonGeom([lng,lat], f.geometry));
+        const summary = $('locateSummary');
+        summary.classList.remove('state-free','state-paid','state-unknown');
+        summary.classList.add('show');
+        if(hit){
+          const segments = parseZeitraum(hit.properties.ZEITRAUM);
+          const status = statusForSegments(segments, v);
+          summary.classList.add('state-'+status);
+          $('locateHeadline').textContent = STR[lang].inZone({bezirk:hit.properties.BEZIRK, label: statusLabel(status)});
+          $('locateDetail').textContent = status==='free' ? STR[lang].free
+            : status==='paid' ? STR[lang].paid + hit.properties.DAUER
+            : STR[lang].unknown;
+        } else {
+          summary.classList.add('state-unknown');
+          $('locateHeadline').textContent = '';
+          $('locateDetail').textContent = STR[lang].noZone;
+        }
+      }, () => alert(STR[lang].geoError));
+    });
+  }
+
+  function initOnce(){
+    if(inited) return;
+    inited = true;
+    leafletMap = L.map('mapview', {scrollWheelZoom:true}).setView([48.2082, 16.3738], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(leafletMap);
+    zoneLayer = L.layerGroup().addTo(leafletMap);
+    noParkLayer = L.layerGroup().addTo(leafletMap);
+    wireControls();
+    applyStatic();
+    loadAll();
+    setTimeout(()=> leafletMap.invalidateSize(), 150);
+    setInterval(()=>{ if($('modeNow').classList.contains('active')) redraw(); }, 60000);
+  }
+
+  return {
+    initOnce,
+    setLang(l){ lang = l; if(inited){ applyStatic(); redraw(); } }
+  };
+})();
+
+/* ================= TAB + LANGUAGE CONTROLLER ================= */
+(function(){
+  const $ = id => document.getElementById(id);
+  $('tabBtnChecker').addEventListener('click', ()=>{
+    $('tabBtnChecker').classList.add('active'); $('tabBtnMap').classList.remove('active');
+    $('view-checker').classList.add('active'); $('view-map').classList.remove('active');
+    $('page').classList.remove('wide');
+  });
+  $('tabBtnMap').addEventListener('click', ()=>{
+    $('tabBtnMap').classList.add('active'); $('tabBtnChecker').classList.remove('active');
+    $('view-map').classList.add('active'); $('view-checker').classList.remove('active');
+    $('page').classList.add('wide');
+    MapApp.initOnce();
+  });
+
+  let lang = 'en';
+  function setLang(l){
+    lang = l;
+    $('langEN').classList.toggle('active', l==='en');
+    $('langES').classList.toggle('active', l==='es');
+    CheckerApp.setLang(l);
+    MapApp.setLang(l);
+  }
+  $('langEN').addEventListener('click', ()=>setLang('en'));
+  $('langES').addEventListener('click', ()=>setLang('es'));
 })();
 </script>
 </body>
