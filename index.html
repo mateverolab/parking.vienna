@@ -3,10 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cloud.umami.is;
+  style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+  img-src 'self' data: https://cdnjs.cloudflare.com https://*.tile.openstreetmap.org;
+  connect-src 'self' https://data.wien.gv.at https://cloud.umami.is;
+  font-src 'self';
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+">
 <title>Can I park here? — Vienna live</title>
 <script defer src="https://cloud.umami.is/script.js" data-website-id="5de2269b-087d-49b3-8987-30c6e00ecee7"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+  integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb" crossorigin="anonymous">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+  integrity="sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO" crossorigin="anonymous"></script>
 <style>
   :root{
     --blue-deep:#0a3d62;
@@ -378,7 +391,7 @@
     <div class="card">
       <h3 id="txt-payTitle">How to pay</h3>
       <p class="pay-text" id="txt-payText">Besides the paper Parkschein, you can pay by phone with <b>HANDYPARKEN</b>, the official app: register once, top up credit, and start/stop your parking session from your phone — no need to display anything on the dashboard.</p>
-      <a class="pay-link" id="txt-payLink" href="https://www.wien.gv.at/verkehr/handyparken" target="_blank" rel="noopener">Official info &amp; download — wien.gv.at/verkehr/handyparken</a>
+      <a class="pay-link" id="txt-payLink" href="https://www.wien.gv.at/verkehr/handyparken" target="_blank" rel="noopener noreferrer">Official info &amp; download — wien.gv.at/verkehr/handyparken</a>
     </div>
 
     <footer id="txt-footer">
@@ -426,7 +439,7 @@
 
     <footer id="txt-mapFooter" style="margin-top:14px;">
       Data: City of Vienna Open Government Data (data.wien.gv.at) — Kurzparkzonen, Anrainerparken, Ladezonen, Taxistandplätze, Bushaltezonen, Behindertenparkplätze &amp; E-Ladestellen layers. Not official advice — check the sign on-site.<br>
-      Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.
+      Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors.
     </footer>
   </div>
 
@@ -817,6 +830,15 @@ const MapApp = (function(){
     return keys.has(`${v.year}-${v.month}-${v.day}`);
   }
 
+  // HTML-escape any text coming from the WFS feed before it goes into a popup's
+  // innerHTML — the data is public-sector and normally clean, but it's still an
+  // external source, so never interpolate it unescaped.
+  const ESC_MAP = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+  function esc(v){
+    if(v===null || v===undefined) return '';
+    return String(v).replace(/[&<>"']/g, c => ESC_MAP[c]);
+  }
+
   // ---------- ZEITRAUM parser (Kurzparkzone + Behindertenparkplatz text format) ----------
   const DAY_MAP = {Mo:1,Di:2,Mi:3,Do:4,Fr:5,Sa:6,So:0};
   const WEEK_ORDER = [1,2,3,4,5,6,0];
@@ -919,7 +941,7 @@ const MapApp = (function(){
       const segments = parseZeitraum(f.properties.ZEITRAUM);
       const status = statusForSegments(segments, v);
       const layer = L.geoJSON(f, { style:{ color:COLORS[status], weight:1, fillColor:COLORS[status], fillOpacity:0.32 } });
-      layer.bindPopup(STR[lang].popupZone(f.properties.BEZIRK, f.properties.ZEITRAUM, f.properties.DAUER, statusLabel(status)));
+      layer.bindPopup(STR[lang].popupZone(esc(f.properties.BEZIRK), esc(f.properties.ZEITRAUM), esc(f.properties.DAUER), statusLabel(status)));
       layer.addTo(zoneLayer);
     });
   }
@@ -933,7 +955,7 @@ const MapApp = (function(){
     noParkData.anrainer.forEach(f=>{
       const p = f.properties;
       const layer = L.geoJSON(f, { style:{ color:'#6a3d9a', weight:4 } });
-      layer.bindPopup(t.popupAnrainer(p.ADRESSE, p.STELLPL_ANZ, p.AUSNAHME_TXT));
+      layer.bindPopup(t.popupAnrainer(esc(p.ADRESSE), esc(p.STELLPL_ANZ), esc(p.AUSNAHME_TXT)));
       layer.addTo(noParkLayer);
     });
 
@@ -942,21 +964,21 @@ const MapApp = (function(){
       const active = ladezoneActive(p, v);
       const color = active ? '#a3372f' : '#b9b0a0';
       const layer = L.geoJSON(f, { style:{ color, weight: active?4:2, dashArray: active?null:'4,4' } });
-      layer.bindPopup(t.popupLadezone(p.ADRESSE, p.ZEITRAUM||'', p.FZG_TXT||'', active ? t.active_l : t.inactive_l));
+      layer.bindPopup(t.popupLadezone(esc(p.ADRESSE), esc(p.ZEITRAUM||''), esc(p.FZG_TXT||''), active ? t.active_l : t.inactive_l));
       layer.addTo(noParkLayer);
     });
 
     noParkData.taxi.forEach(f=>{
       const p = f.properties;
       const layer = L.geoJSON(f, { style:{ color:'#c8971f', weight:4 } });
-      layer.bindPopup(t.popupTaxi(p.ADRESSE, p.STELLPLATZANZAHL));
+      layer.bindPopup(t.popupTaxi(esc(p.ADRESSE), esc(p.STELLPLATZANZAHL)));
       layer.addTo(noParkLayer);
     });
 
     noParkData.bus.forEach(f=>{
       const p = f.properties;
       const layer = L.geoJSON(f, { style:{ color:'#3a4a5a', weight:4 } });
-      layer.bindPopup(t.popupBus(p.BEZEICHNUNG, p.ADRESSE, p.AUSN_TXT));
+      layer.bindPopup(t.popupBus(esc(p.BEZEICHNUNG), esc(p.ADRESSE), esc(p.AUSN_TXT)));
       layer.addTo(noParkLayer);
     });
 
@@ -966,7 +988,7 @@ const MapApp = (function(){
       const segments = parseZeitraum(p.ZEITRAUM);
       const status = statusForSegments(segments, v);
       const marker = L.circleMarker([lat,lng], {radius:5, color:'#0a3d62', weight:1, fillColor:'#0a3d62', fillOpacity: status==='paid' || status==='unknown' ? 0.9 : 0.35});
-      marker.bindPopup(t.popupDisability(p.STRNAM, p.ONR_VON, p.ZEITRAUM, p.STELLPL_ANZ, p.BESCHREIBUNG, statusLabel(status)));
+      marker.bindPopup(t.popupDisability(esc(p.STRNAM), esc(p.ONR_VON), esc(p.ZEITRAUM), esc(p.STELLPL_ANZ), esc(p.BESCHREIBUNG), statusLabel(status)));
       marker.addTo(noParkLayer);
     });
 
@@ -974,7 +996,7 @@ const MapApp = (function(){
       const p = f.properties;
       const [lng,lat] = f.geometry.coordinates;
       const marker = L.circleMarker([lat,lng], {radius:5, color:'#1b8a7a', weight:1, fillColor:'#1b8a7a', fillOpacity:0.85});
-      marker.bindPopup(t.popupEv(p.ADDRESS, p.OPERATORNAME));
+      marker.bindPopup(t.popupEv(esc(p.ADDRESS), esc(p.OPERATORNAME)));
       marker.addTo(noParkLayer);
     });
   }
