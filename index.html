@@ -7,7 +7,7 @@
   default-src 'self';
   script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cloud.umami.is;
   style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
-  img-src 'self' data: https://cdnjs.cloudflare.com https://*.tile.openstreetmap.org;
+  img-src 'self' data: https://cdnjs.cloudflare.com https://*.basemaps.cartocdn.com;
   connect-src 'self' https://data.wien.gv.at https://cloud.umami.is;
   font-src 'self';
   object-src 'none';
@@ -16,15 +16,13 @@
 ">
 <title>Can I park here? — Vienna live</title>
 <script defer src="https://cloud.umami.is/script.js" data-website-id="5de2269b-087d-49b3-8987-30c6e00ecee7"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
-  integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb" crossorigin="anonymous">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
-  integrity="sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root{
-    --blue-deep:#0a3d62;
-    --blue:#1b5e8a;
-    --blue-pale:#e7f0f6;
+    --blue-deep:#1c3329;
+    --blue:#3a5a48;
+    --blue-pale:#e8ede9;
     --gold:#c8971f;
     --gold-soft:#f2e2b8;
     --paper:#f6f3ec;
@@ -38,6 +36,11 @@
     --amber-bg:#f6ecd4;
     --purple:#6a3d9a;
     --teal:#1b8a7a;
+    --p-purple:#b39ddb;
+    --p-amber:#f0c274;
+    --p-blue:#9cbcdb;
+    --p-coral:#eda6a6;
+    --p-mint:#9fd6b7;
     --line:#d9d2c2;
     --radius:18px;
     --shadow:0 10px 30px -12px rgba(10,61,98,0.25);
@@ -248,14 +251,11 @@
   .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:0.76rem;color:var(--ink-soft);margin-top:12px;}
   .legend span{display:inline-flex;align-items:center;gap:6px;}
   .dot{width:11px;height:11px;border-radius:50%;display:inline-block;flex:none;}
-  .dot.free{background:var(--green);} .dot.paid{background:var(--red);}
-  .dot.anrainer{background:var(--purple);} .dot.taxi{background:var(--gold);}
-  .dot.bus{background:#3a4a5a;} .dot.disability{background:var(--blue-deep);}
-  .dot.ev{background:var(--teal);}
+  .dot.anrainer{background:var(--p-purple);} .dot.taxi{background:var(--p-amber);}
+  .dot.bus{background:var(--p-blue);} .dot.disability{background:var(--p-coral);}
+  .dot.ev{background:var(--p-mint);}
   .layer-toggles{margin-top:6px;}
-  .locate-summary{display:none;}
-  .locate-summary.show{display:block;}
-  .locate-summary .headline{font-weight:700;font-size:1rem;margin:0 0 4px;}
+  .locate-summary .headline{font-weight:700;font-size:1rem;margin:0 0 4px;color:var(--ink);}
   .locate-summary .detail{font-size:0.85rem;color:var(--ink-soft);margin:0;}
   .locate-summary.state-free{background:var(--green-bg);}
   .locate-summary.state-paid{background:var(--red-bg);}
@@ -402,6 +402,12 @@
 
   <!-- ============ MAP VIEW ============ -->
   <div class="view" id="view-map">
+
+    <div class="card locate-summary always" id="locateSummary">
+      <p class="headline" id="locateHeadline">Tap a zone, or use Locate me</p>
+      <p class="detail" id="locateDetail">The Kurzparkzone status for wherever you tap shows up here — the map itself stays neutral.</p>
+    </div>
+
     <div class="card">
       <div class="controls-row">
         <button class="btn" id="btnLocate">📍 <span id="txt-locate">Locate me</span></button>
@@ -413,33 +419,34 @@
       <div class="plan-row" id="planRow">
         <input type="datetime-local" id="planTime">
       </div>
+      <div class="toggle-row">
+        <div class="label" id="txt-kpzTitle">Show Kurzparkzone boundaries
+          <small id="txt-kpzSub">Tap a zone to see its status in the card above</small>
+        </div>
+        <label class="switch"><input type="checkbox" id="tKpz" checked><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 id="txt-noParkTitle">No-parking spots (default: private car, no Parkpickerl)</h3>
       <div class="legend">
-        <span><i class="dot free"></i><span id="txt-legFree">Free now</span></span>
-        <span><i class="dot paid"></i><span id="txt-legPaid">Paid now</span></span>
         <span><i class="dot anrainer"></i><span id="txt-legAnrainer">Residents only</span></span>
         <span><i class="dot taxi"></i><span id="txt-legTaxi">Taxi stand</span></span>
         <span><i class="dot bus"></i><span id="txt-legBus">Bus stop</span></span>
         <span><i class="dot disability"></i><span id="txt-legDisability">Disability</span></span>
         <span><i class="dot ev"></i><span id="txt-legEv">EV charging</span></span>
       </div>
-      <div class="layer-toggles">
-        <div class="toggle-row">
-          <div class="label" id="txt-noParkTitle">Show "no parking" spots (default: private car, no Parkpickerl)</div>
-          <label class="switch"><input type="checkbox" id="tNoParkAll" checked><span class="slider"></span></label>
-        </div>
+      <div class="toggle-row" style="margin-top:10px;border-top:1px solid var(--line);padding-top:12px;">
+        <div class="label" id="txt-noParkToggleLabel">Show these on the map</div>
+        <label class="switch"><input type="checkbox" id="tNoParkAll" checked><span class="slider"></span></label>
       </div>
-    </div>
-
-    <div class="card locate-summary" id="locateSummary">
-      <p class="headline" id="locateHeadline"></p>
-      <p class="detail" id="locateDetail"></p>
     </div>
 
     <div id="mapview"></div>
 
     <footer id="txt-mapFooter" style="margin-top:14px;">
       Data: City of Vienna Open Government Data (data.wien.gv.at) — Kurzparkzonen, Anrainerparken, Ladezonen, Taxistandplätze, Bushaltezonen, Behindertenparkplätze &amp; E-Ladestellen layers. Not official advice — check the sign on-site.<br>
-      Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors.
+      Map tiles © <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">CARTO</a>, map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors.
     </footer>
   </div>
 
@@ -733,12 +740,16 @@ const MapApp = (function(){
 
   const STR = {
     en:{
-      legFree:'Free now', legPaid:'Paid now', legAnrainer:'Residents only', legTaxi:'Taxi stand',
+      legAnrainer:'Residents only', legTaxi:'Taxi stand',
       legBus:'Bus stop', legDisability:'Disability', legEv:'EV charging',
-      noParkTitle:'Show "no parking" spots (default: private car, no Parkpickerl)',
+      noParkTitle:'No-parking spots (default: private car, no Parkpickerl)',
+      noParkToggleLabel:'Show these on the map',
+      kpzTitle:'Show Kurzparkzone boundaries', kpzSub:'Tap a zone to see its status in the card above',
       locate:'Locate me', now:'Now', plan:'Plan ahead',
       geoError:"Couldn't get your location — check your browser's location permission.",
       inZone:h=>`District ${h.bezirk} — ${h.label}`,
+      tapHeadline:'Tap a zone, or use Locate me',
+      tapDetail:'The Kurzparkzone status for wherever you tap shows up here — the map itself stays neutral.',
       free:'Free to park here right now.', paid:'Paid Kurzparkzone right now — Parkschein needed, max. ',
       unknown:'This zone has a special schedule — check the sign.',
       noZone:"You're not inside a mapped Kurzparkzone polygon right now.",
@@ -753,12 +764,16 @@ const MapApp = (function(){
       popupEv:(addr,op)=>`<b>EV charging only</b><br>${addr}<br>${op||''}`
     },
     es:{
-      legFree:'Libre ahora', legPaid:'Pago ahora', legAnrainer:'Solo vecinos', legTaxi:'Parada de taxi',
+      legAnrainer:'Solo vecinos', legTaxi:'Parada de taxi',
       legBus:'Parada de bus', legDisability:'Discapacidad', legEv:'Carga eléctrica',
-      noParkTitle:'Mostrar lugares "no estacionar" (default: auto particular, sin Parkpickerl)',
+      noParkTitle:'Lugares "no estacionar" (default: auto particular, sin Parkpickerl)',
+      noParkToggleLabel:'Mostrar en el mapa',
+      kpzTitle:'Mostrar límites de Kurzparkzone', kpzSub:'Tocá una zona para ver su estado en la tarjeta de arriba',
       locate:'Mi ubicación', now:'Ahora', plan:'Planificar',
       geoError:'No pudimos obtener tu ubicación — revisá el permiso de ubicación del navegador.',
       inZone:h=>`Distrito ${h.bezirk} — ${h.label}`,
+      tapHeadline:'Tocá una zona, o usá Mi ubicación',
+      tapDetail:'El estado de Kurzparkzone de donde toques aparece acá — el mapa en sí queda neutro.',
       free:'Podés estacionar gratis acá ahora.', paid:'Zona paga ahora — necesitás Parkschein, máximo ',
       unknown:'Esta zona tiene un horario especial — fijate en el cartel.',
       noZone:'No estás dentro de ningún polígono de Kurzparkzone mapeado ahora mismo.',
@@ -774,19 +789,26 @@ const MapApp = (function(){
     }
   };
 
+  let zoneEverTapped = false;
+
   function applyStatic(){
     const t = STR[lang];
-    $('txt-legFree').textContent = t.legFree;
-    $('txt-legPaid').textContent = t.legPaid;
     $('txt-legAnrainer').textContent = t.legAnrainer;
     $('txt-legTaxi').textContent = t.legTaxi;
     $('txt-legBus').textContent = t.legBus;
     $('txt-legDisability').textContent = t.legDisability;
     $('txt-legEv').textContent = t.legEv;
     $('txt-noParkTitle').textContent = t.noParkTitle;
+    $('txt-noParkToggleLabel').textContent = t.noParkToggleLabel;
+    $('txt-kpzTitle').firstChild.textContent = t.kpzTitle;
+    $('txt-kpzSub').textContent = t.kpzSub;
     $('txt-locate').textContent = t.locate;
     $('modeNow').textContent = t.now;
     $('modePlan').textContent = t.plan;
+    if(!zoneEverTapped){
+      $('locateHeadline').textContent = t.tapHeadline;
+      $('locateDetail').textContent = t.tapDetail;
+    }
   }
 
   // ---------- date / holiday helpers ----------
@@ -915,7 +937,7 @@ const MapApp = (function(){
     return false;
   }
 
-  const COLORS = {free:'#2f6b3a', paid:'#a3372f', unknown:'#9a6b13'};
+  const NEUTRAL_ZONE_COLOR = '#7a92a3'; // boundary only — status is never shown as map color, see the card above the map
   const WFS_BASE = 'https://data.wien.gv.at/daten/geo?service=WFS&request=GetFeature&version=1.1.0&srsName=EPSG:4326&outputFormat=json';
 
   let zoneLayer, noParkLayer;
@@ -934,14 +956,39 @@ const MapApp = (function(){
     return status==='free' ? t.free_l : status==='paid' ? t.paid_l : t.unknown_l;
   }
 
+  // Single source of truth for the always-visible card above the map —
+  // used both by "Locate me" and by tapping a zone directly.
+  function showZoneStatus(feature){
+    const t = STR[lang];
+    const v = currentCheckTime();
+    const summary = $('locateSummary');
+    summary.classList.remove('state-free','state-paid','state-unknown');
+    zoneEverTapped = true;
+    if(feature){
+      const segments = parseZeitraum(feature.properties.ZEITRAUM);
+      const status = statusForSegments(segments, v);
+      summary.classList.add('state-'+status);
+      $('locateHeadline').textContent = t.inZone({bezirk:feature.properties.BEZIRK, label: statusLabel(status)});
+      $('locateDetail').textContent = status==='free' ? t.free
+        : status==='paid' ? t.paid + feature.properties.DAUER
+        : t.unknown;
+    } else {
+      summary.classList.add('state-unknown');
+      $('locateHeadline').textContent = '';
+      $('locateDetail').textContent = t.noZone;
+    }
+  }
+
   function redrawZones(){
     const v = currentCheckTime();
     zoneLayer.clearLayers();
     zoneFeatures.forEach(f => {
       const segments = parseZeitraum(f.properties.ZEITRAUM);
       const status = statusForSegments(segments, v);
-      const layer = L.geoJSON(f, { style:{ color:COLORS[status], weight:1, fillColor:COLORS[status], fillOpacity:0.32 } });
+      // Neutral outline only — no green/red fill on the map, see design decision above.
+      const layer = L.geoJSON(f, { style:{ color:NEUTRAL_ZONE_COLOR, weight:1.5, fillOpacity:0.02 } });
       layer.bindPopup(STR[lang].popupZone(esc(f.properties.BEZIRK), esc(f.properties.ZEITRAUM), esc(f.properties.DAUER), statusLabel(status)));
+      layer.on('click', () => showZoneStatus(f));
       layer.addTo(zoneLayer);
     });
   }
@@ -954,7 +1001,7 @@ const MapApp = (function(){
 
     noParkData.anrainer.forEach(f=>{
       const p = f.properties;
-      const layer = L.geoJSON(f, { style:{ color:'#6a3d9a', weight:4 } });
+      const layer = L.geoJSON(f, { style:{ color:'#b39ddb', weight:4 } });
       layer.bindPopup(t.popupAnrainer(esc(p.ADRESSE), esc(p.STELLPL_ANZ), esc(p.AUSNAHME_TXT)));
       layer.addTo(noParkLayer);
     });
@@ -970,14 +1017,14 @@ const MapApp = (function(){
 
     noParkData.taxi.forEach(f=>{
       const p = f.properties;
-      const layer = L.geoJSON(f, { style:{ color:'#c8971f', weight:4 } });
+      const layer = L.geoJSON(f, { style:{ color:'#f0c274', weight:4 } });
       layer.bindPopup(t.popupTaxi(esc(p.ADRESSE), esc(p.STELLPLATZANZAHL)));
       layer.addTo(noParkLayer);
     });
 
     noParkData.bus.forEach(f=>{
       const p = f.properties;
-      const layer = L.geoJSON(f, { style:{ color:'#3a4a5a', weight:4 } });
+      const layer = L.geoJSON(f, { style:{ color:'#9cbcdb', weight:4 } });
       layer.bindPopup(t.popupBus(esc(p.BEZEICHNUNG), esc(p.ADRESSE), esc(p.AUSN_TXT)));
       layer.addTo(noParkLayer);
     });
@@ -987,7 +1034,7 @@ const MapApp = (function(){
       const [lng,lat] = f.geometry.coordinates;
       const segments = parseZeitraum(p.ZEITRAUM);
       const status = statusForSegments(segments, v);
-      const marker = L.circleMarker([lat,lng], {radius:5, color:'#0a3d62', weight:1, fillColor:'#0a3d62', fillOpacity: status==='paid' || status==='unknown' ? 0.9 : 0.35});
+      const marker = L.circleMarker([lat,lng], {radius:5, color:'#eda6a6', weight:1, fillColor:'#eda6a6', fillOpacity: status==='paid' || status==='unknown' ? 0.9 : 0.35});
       marker.bindPopup(t.popupDisability(esc(p.STRNAM), esc(p.ONR_VON), esc(p.ZEITRAUM), esc(p.STELLPL_ANZ), esc(p.BESCHREIBUNG), statusLabel(status)));
       marker.addTo(noParkLayer);
     });
@@ -995,7 +1042,7 @@ const MapApp = (function(){
     noParkData.ev.forEach(f=>{
       const p = f.properties;
       const [lng,lat] = f.geometry.coordinates;
-      const marker = L.circleMarker([lat,lng], {radius:5, color:'#1b8a7a', weight:1, fillColor:'#1b8a7a', fillOpacity:0.85});
+      const marker = L.circleMarker([lat,lng], {radius:5, color:'#9fd6b7', weight:1, fillColor:'#9fd6b7', fillOpacity:0.85});
       marker.bindPopup(t.popupEv(esc(p.ADDRESS), esc(p.OPERATORNAME)));
       marker.addTo(noParkLayer);
     });
@@ -1049,30 +1096,19 @@ const MapApp = (function(){
       else { leafletMap.removeLayer(noParkLayer); }
     });
 
+    $('tKpz').addEventListener('change', (e)=>{
+      if(e.target.checked){ zoneLayer.addTo(leafletMap); redrawZones(); }
+      else { leafletMap.removeLayer(zoneLayer); }
+    });
+
     $('btnLocate').addEventListener('click', ()=>{
       if(!navigator.geolocation){ alert(STR[lang].geoError); return; }
       navigator.geolocation.getCurrentPosition(pos => {
         const lat = pos.coords.latitude, lng = pos.coords.longitude;
         leafletMap.setView([lat,lng], 17);
         L.marker([lat,lng]).addTo(leafletMap);
-        const v = currentCheckTime();
         const hit = zoneFeatures.find(f => pointInPolygonGeom([lng,lat], f.geometry));
-        const summary = $('locateSummary');
-        summary.classList.remove('state-free','state-paid','state-unknown');
-        summary.classList.add('show');
-        if(hit){
-          const segments = parseZeitraum(hit.properties.ZEITRAUM);
-          const status = statusForSegments(segments, v);
-          summary.classList.add('state-'+status);
-          $('locateHeadline').textContent = STR[lang].inZone({bezirk:hit.properties.BEZIRK, label: statusLabel(status)});
-          $('locateDetail').textContent = status==='free' ? STR[lang].free
-            : status==='paid' ? STR[lang].paid + hit.properties.DAUER
-            : STR[lang].unknown;
-        } else {
-          summary.classList.add('state-unknown');
-          $('locateHeadline').textContent = '';
-          $('locateDetail').textContent = STR[lang].noZone;
-        }
+        showZoneStatus(hit || null);
       }, () => alert(STR[lang].geoError));
     });
   }
@@ -1081,8 +1117,10 @@ const MapApp = (function(){
     if(inited) return;
     inited = true;
     leafletMap = L.map('mapview', {scrollWheelZoom:true}).setView([48.2082, 16.3738], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+    // Light minimal basemap (CartoDB Positron) — keeps street names, drops POI/tourism icons.
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 20, subdomains: 'abcd',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
     }).addTo(leafletMap);
     zoneLayer = L.layerGroup().addTo(leafletMap);
     noParkLayer = L.layerGroup().addTo(leafletMap);
