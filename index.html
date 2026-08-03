@@ -247,6 +247,8 @@
   #planTime{font-size:0.85rem;padding:7px 10px;border-radius:10px;border:1px solid var(--line);font-family:inherit;}
   .plan-row{display:none;margin-top:10px;}
   .plan-row.show{display:flex;gap:8px;align-items:center;}
+  .map-loading{font-size:0.78rem;color:var(--ink-soft);text-align:center;margin:0 0 8px;min-height:1.1em;}
+  .map-loading:empty{display:none;}
   #mapview{width:100%;height:56vh;min-height:380px;border-radius:var(--radius);border:1px solid var(--line);box-shadow:var(--shadow);}
   .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:0.76rem;color:var(--ink-soft);margin-top:12px;}
   .legend span{display:inline-flex;align-items:center;gap:6px;}
@@ -442,6 +444,7 @@
       </div>
     </div>
 
+    <p class="map-loading" id="mapLoading"></p>
     <div id="mapview"></div>
 
     <footer id="txt-mapFooter" style="margin-top:14px;">
@@ -746,6 +749,7 @@ const MapApp = (function(){
       noParkToggleLabel:'Show these on the map',
       kpzTitle:'Show Kurzparkzone boundaries', kpzSub:'Tap a zone to see its status in the card above',
       locate:'Locate me', now:'Now', plan:'Plan ahead',
+      loadingMap:(n,total)=>`Loading map data… (${n}/${total})`,
       geoError:"Couldn't get your location — check your browser's location permission.",
       inZone:h=>`District ${h.bezirk} — ${h.label}`,
       tapHeadline:'Tap a zone, or use Locate me',
@@ -770,6 +774,7 @@ const MapApp = (function(){
       noParkToggleLabel:'Mostrar en el mapa',
       kpzTitle:'Mostrar límites de Kurzparkzone', kpzSub:'Tocá una zona para ver su estado en la tarjeta de arriba',
       locate:'Mi ubicación', now:'Ahora', plan:'Planificar',
+      loadingMap:(n,total)=>`Cargando datos del mapa… (${n}/${total})`,
       geoError:'No pudimos obtener tu ubicación — revisá el permiso de ubicación del navegador.',
       inZone:h=>`Distrito ${h.bezirk} — ${h.label}`,
       tapHeadline:'Tocá una zona, o usá Mi ubicación',
@@ -809,6 +814,15 @@ const MapApp = (function(){
       $('locateHeadline').textContent = t.tapHeadline;
       $('locateDetail').textContent = t.tapDetail;
     }
+    updateLoadingText();
+  }
+
+  // ---------- loading progress (7 WFS layers fetched in parallel) ----------
+  let loadedCount = 0, totalLayers = 7, loadingDone = false;
+  function updateLoadingText(){
+    const el = $('mapLoading');
+    if(loadingDone){ el.textContent = ''; return; }
+    el.textContent = STR[lang].loadingMap(loadedCount, totalLayers);
   }
 
   // ---------- date / holiday helpers ----------
@@ -942,7 +956,10 @@ const MapApp = (function(){
 
   let zoneLayer, noParkLayer;
   let zoneFeatures = [];
-  let noParkData = null; // cached fetch results for the 6 layers
+  // cached fetch results for the 6 no-parking layers — starts empty so each
+  // category can be drawn as soon as its own fetch resolves, instead of
+  // waiting for the slowest of the 7 requests before anything appears.
+  let noParkData = { anrainer:[], ladezone:[], taxi:[], bus:[], disability:[], ev:[] };
 
   function currentCheckTime(){
     const mode = $('modePlan').classList.contains('active') ? 'plan' : 'now';
@@ -994,7 +1011,6 @@ const MapApp = (function(){
   }
 
   function redrawNoPark(){
-    if(!noParkData) return;
     const v = currentCheckTime();
     const t = STR[lang];
     noParkLayer.clearLayers();
@@ -1060,19 +1076,39 @@ const MapApp = (function(){
     return j.features;
   }
 
+  // Each of the 7 layers is fetched independently and drawn the moment it
+  // arrives — a slow request (e.g. a large citywide point layer) no longer
+  // blocks the others from appearing. The "(n/7)" counter above the map
+  // gives visible feedback instead of a silent multi-second blank map.
   async function loadAll(){
-    const [zones, anrainer, ladezone, taxi, bus, disability, ev] = await Promise.all([
-      fetchLayer('KURZPARKZONEOGD'),
-      fetchLayer('PARKENANRAINEROGD'),
-      fetchLayer('LADEZONENOGD'),
-      fetchLayer('TAXIOGD'),
-      fetchLayer('BUSHALTEZONEOGD'),
-      fetchLayer('BEHINDERTENPARKPLATZOGD'),
-      fetchLayer('ELADESTELLEOGD')
-    ]);
-    zoneFeatures = zones;
-    noParkData = { anrainer, ladezone, taxi, bus, disability, ev };
-    redraw();
+    loadedCount = 0; loadingDone = false; updateLoadingText();
+
+    function onLayerDone(){
+      loadedCount++;
+      updateLoadingText();
+      if(loadedCount>=totalLayers){ loadingDone = true; updateLoadingText(); }
+    }
+
+    const zonesJob = fetchLayer('KURZPARKZONEOGD')
+      .then(f => { zoneFeatures = f; redrawZones(); })
+      .catch(err => console.error('KURZPARKZONEOGD failed', err))
+      .finally(onLayerDone);
+
+    const noParkJobs = [
+      ['anrainer','PARKENANRAINEROGD'],
+      ['ladezone','LADEZONENOGD'],
+      ['taxi','TAXIOGD'],
+      ['bus','BUSHALTEZONEOGD'],
+      ['disability','BEHINDERTENPARKPLATZOGD'],
+      ['ev','ELADESTELLEOGD']
+    ].map(([key, typeName]) =>
+      fetchLayer(typeName)
+        .then(f => { noParkData[key] = f; redrawNoPark(); })
+        .catch(err => console.error(typeName + ' failed', err))
+        .finally(onLayerDone)
+    );
+
+    await Promise.allSettled([zonesJob, ...noParkJobs]);
   }
 
   function wireControls(){
